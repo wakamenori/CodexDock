@@ -51,6 +51,7 @@ const mapThreadList = (result: unknown) => {
       const threadId = getIdString(record?.id) ?? getIdString(record?.threadId);
       return {
         threadId,
+        cwd: getString(record, "cwd"),
         preview: getString(record, "preview"),
         updatedAt:
           getTimeString(record, "updatedAt") ??
@@ -229,10 +230,12 @@ export const createApp = (options: {
 
   app.post("/api/repos/:repoId/threads", async (c) => {
     const repoId = c.req.param("repoId");
-    await requireRepo(repoId);
+    const repo = await requireRepo(repoId);
     try {
       const session = await manager.getOrStart(repoId);
-      const result = await session.request("thread/start");
+      const result = await session.request("thread/start", {
+        cwd: repo.path,
+      });
       const threadId = extractThreadId(result);
       if (!threadId) {
         throw new Error("thread id missing");
@@ -250,9 +253,9 @@ export const createApp = (options: {
     await requireRepo(repoId);
     try {
       const session = await manager.getOrStart(repoId);
-      await session.request("thread/resume", { threadId });
+      const result = await session.request("thread/resume", { threadId });
       await refresher.refresh(repoId);
-      return c.json({ thread: { threadId } });
+      return c.json({ thread: { threadId }, resume: result });
     } catch (error) {
       throw appServerError(error);
     }

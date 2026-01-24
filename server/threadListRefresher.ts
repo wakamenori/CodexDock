@@ -45,6 +45,7 @@ export class ThreadListRefresher {
             getIdString(record?.id) ?? getIdString(record?.threadId);
           return {
             threadId,
+            cwd: getStringValue(record, "cwd"),
             preview: getStringValue(record, "preview"),
             updatedAt:
               getTimeValue(record, "updatedAt") ??
