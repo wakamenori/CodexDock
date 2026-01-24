@@ -4,6 +4,7 @@ import { extractDiffFileNames } from "../diff";
 import { useAutoScroll } from "../hooks/useAutoScroll";
 import type { ChatMessage, DiffEntry } from "../types";
 import { DiffViewer } from "./DiffViewer";
+import { ReasoningItem } from "./ReasoningItem";
 
 type ChatHistoryProps = {
   errorMessage: string | null;
@@ -36,6 +37,9 @@ export function ChatHistory({
       )}
 
       {messages.map((message) => {
+        if (message.role === "reasoning") {
+          return <ReasoningItem key={message.id} message={message} />;
+        }
         const isUser = message.role === "user";
         return (
           <div

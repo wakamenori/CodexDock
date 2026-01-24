@@ -5,6 +5,24 @@ export const createRequestId = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+const REASONING_SUMMARY_LIMIT = 4000;
+const REASONING_CONTENT_LIMIT = 20000;
+
+export const truncateText = (value: string, limit: number) =>
+  value.length > limit ? value.slice(0, limit) : value;
+
+export const normalizeReasoningSummary = (value: string) =>
+  truncateText(value, REASONING_SUMMARY_LIMIT);
+
+export const normalizeReasoningContent = (value: string) =>
+  truncateText(value, REASONING_CONTENT_LIMIT);
+
+export const appendReasoningSummary = (current: string, delta: string) =>
+  normalizeReasoningSummary(`${current}${delta}`);
+
+export const appendReasoningContent = (current: string, delta: string) =>
+  normalizeReasoningContent(`${current}${delta}`);
+
 export const formatTime = (value?: string) => {
   if (!value) return "";
   const date = new Date(value);
@@ -157,6 +175,21 @@ export const buildMessagesFromResume = (
           createdAt: baseTime + idx,
         });
       }
+    }
+    if (itemType === "reasoning") {
+      const summary =
+        typeof item.summary === "string" ? item.summary : "";
+      const content =
+        typeof item.content === "string" ? item.content : "";
+      messages.push({
+        id: itemId,
+        itemId,
+        role: "reasoning",
+        text: "",
+        summary: normalizeReasoningSummary(summary),
+        content: normalizeReasoningContent(content),
+        createdAt: baseTime + idx,
+      });
     }
   }
   return messages;

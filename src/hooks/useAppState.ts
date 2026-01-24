@@ -13,6 +13,8 @@ import type {
 } from "../types";
 import {
   asRecord,
+  appendReasoningContent,
+  appendReasoningSummary,
   buildMessagesFromResume,
   createRequestId,
   extractAgentMessageText,
@@ -25,6 +27,8 @@ import {
   extractUserMessageText,
   getIdString,
   normalizeRootPath,
+  normalizeReasoningContent,
+  normalizeReasoningSummary,
 } from "../utils/appUtils";
 
 type UseAppStateResult = {
@@ -163,10 +167,10 @@ export const useAppState = (): UseAppStateResult => {
     (_repoId: string, message: { method: string; params?: JsonValue }) => {
       const { method, params } = message;
       const threadId = extractThreadId(params) ?? selectedThreadIdRef.current;
-      if (
-        method === "item/agentMessage/delta" ||
-        method === "item/assistantMessage/delta"
-      ) {
+    if (
+      method === "item/agentMessage/delta" ||
+      method === "item/assistantMessage/delta"
+    ) {
         if (!threadId) return;
         const itemId = extractItemId(params, `${method}-${Date.now()}`);
         const deltaText = extractDeltaText(params);
@@ -194,8 +198,51 @@ export const useAppState = (): UseAppStateResult => {
           }
           return list;
         });
-        return;
-      }
+      return;
+    }
+
+    if (
+      method === "item/reasoning/summaryTextDelta" ||
+      method === "item/reasoning/textDelta"
+    ) {
+      if (!threadId) return;
+      const itemId = extractItemId(params, `${method}-${Date.now()}`);
+      const deltaText = extractDeltaText(params);
+      if (!deltaText) return;
+      const isSummaryDelta = method === "item/reasoning/summaryTextDelta";
+      updateThreadMessages(threadId, (list) => {
+        const idx = list.findIndex(
+          (entry) => entry.itemId === itemId || entry.id === itemId,
+        );
+        const existing = idx >= 0 && list[idx].role === "reasoning"
+          ? list[idx]
+          : undefined;
+        const summary = existing?.summary ?? "";
+        const content = existing?.content ?? "";
+        const nextSummary = isSummaryDelta
+          ? appendReasoningSummary(summary, deltaText)
+          : normalizeReasoningSummary(summary);
+        const nextContent = isSummaryDelta
+          ? normalizeReasoningContent(content)
+          : appendReasoningContent(content, deltaText);
+        const nextEntry = {
+          id: itemId,
+          itemId,
+          role: "reasoning" as const,
+          text: "",
+          summary: nextSummary,
+          content: nextContent,
+          createdAt: existing?.createdAt ?? Date.now(),
+        };
+        if (idx >= 0) {
+          list[idx] = nextEntry;
+        } else {
+          list.push(nextEntry);
+        }
+        return list;
+      });
+      return;
+    }
 
       if (method === "item/started" || method === "item/completed") {
         if (!threadId) return;
@@ -244,9 +291,9 @@ export const useAppState = (): UseAppStateResult => {
           });
         }
 
-        if (itemType === "agentMessage") {
-          const text = extractAgentMessageText(item);
-          if (!text) return;
+      if (itemType === "agentMessage") {
+        const text = extractAgentMessageText(item);
+        if (!text) return;
           updateThreadMessages(threadId, (list) => {
             const existingIdx = list.findIndex(
               (entry) => entry.itemId === itemId || entry.id === itemId,
@@ -269,10 +316,43 @@ export const useAppState = (): UseAppStateResult => {
               });
             }
             return list;
-          });
-        }
-        return;
+        });
       }
+      if (itemType === "reasoning") {
+        const summaryFromItem =
+          typeof item.summary === "string" ? item.summary : "";
+        const contentFromItem =
+          typeof item.content === "string" ? item.content : "";
+        updateThreadMessages(threadId, (list) => {
+          const existingIdx = list.findIndex(
+            (entry) => entry.itemId === itemId || entry.id === itemId,
+          );
+          const existing =
+            existingIdx >= 0 && list[existingIdx].role === "reasoning"
+              ? list[existingIdx]
+              : undefined;
+          const summary = summaryFromItem || existing?.summary || "";
+          const content = contentFromItem || existing?.content || "";
+          const nextEntry = {
+            id: itemId,
+            itemId,
+            role: "reasoning" as const,
+            text: "",
+            summary: normalizeReasoningSummary(summary),
+            content: normalizeReasoningContent(content),
+            createdAt: existing?.createdAt ?? Date.now(),
+          };
+          if (existingIdx >= 0) {
+            list[existingIdx] = nextEntry;
+          } else {
+            list.push(nextEntry);
+          }
+          return list;
+        });
+      }
+
+      return;
+    }
 
       if (method === "turn/diff/updated") {
         if (!threadId) return;

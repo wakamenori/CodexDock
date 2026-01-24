@@ -73,11 +73,13 @@ export type WsOutboundMessage =
 
 export type ChatMessage = {
   id: string;
-  role: "agent" | "system" | "user";
+  role: "agent" | "system" | "user" | "reasoning";
   text: string;
   createdAt: number;
   itemId?: string;
   pending?: boolean;
+  summary?: string;
+  content?: string;
 };
 
 export type DiffEntry = {
