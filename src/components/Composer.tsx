@@ -17,7 +17,7 @@ export function Composer({
     <div className="border-t border-ink-700 px-6 py-4">
       <div className="rounded-xl border border-ink-700 bg-ink-800/70 px-4 py-3">
         <textarea
-          className="h-28 w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-ink-300"
+          className="h-28 w-full resize-none bg-transparent text-sm text-ink-200 outline-none placeholder:text-ink-300"
           placeholder={
             selectedThreadId
               ? "Describe what you want to build..."

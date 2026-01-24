@@ -9,7 +9,7 @@ export function HeaderBar({ wsConnected }: HeaderBarProps) {
         <p className="text-sm uppercase tracking-[0.3em] text-neon-300">
           CodexDock
         </p>
-        <h1 className="text-2xl font-semibold text-white">
+        <h1 className="text-2xl font-semibold text-ink-100">
           Local Web Assistant Console
         </h1>
       </div>

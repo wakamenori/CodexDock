@@ -58,7 +58,7 @@ export function ChatHistory({
                   pending
                 </p>
               )}
-              <div className="mt-2 text-sm leading-relaxed text-white markdown">
+              <div className="mt-2 text-sm leading-relaxed text-ink-200 markdown">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {message.text}
                 </ReactMarkdown>

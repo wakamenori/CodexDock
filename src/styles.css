@@ -5,10 +5,13 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
-  --bg-top: #0b0f14;
-  --bg-mid: #121c2a;
-  --bg-glow: #0f2a33;
+  color-scheme: dark;
+  --bg-top: #1a1b26;
+  --bg-mid: #16161e;
+  --bg-glow: #24283b;
+  --accent-blue: rgba(122, 162, 247, 0.18);
+  --accent-purple: rgba(187, 154, 247, 0.12);
+  --accent-cyan: rgba(125, 207, 255, 0.1);
 }
 
 * {
@@ -20,15 +23,21 @@ body {
   min-height: 100vh;
   background: radial-gradient(
       1200px 500px at 20% 0%,
-      rgba(79, 255, 193, 0.08),
+      var(--accent-blue),
       transparent 60%
     ),
     radial-gradient(
       800px 600px at 90% 10%,
-      rgba(124, 243, 255, 0.12),
+      var(--accent-purple),
       transparent 65%
-    ), linear-gradient(180deg, var(--bg-top), var(--bg-mid));
-  color: #d7e2f2;
+    ),
+    radial-gradient(
+      900px 600px at 50% 120%,
+      var(--accent-cyan),
+      transparent 70%
+    ),
+    linear-gradient(180deg, var(--bg-top), var(--bg-mid));
+  color: #c0caf5;
   font-family: "Space Grotesk", system-ui, sans-serif;
 }
 
@@ -37,12 +46,12 @@ body {
 }
 
 ::selection {
-  background: rgba(79, 255, 193, 0.25);
+  background: rgba(122, 162, 247, 0.35);
 }
 
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgba(124, 243, 255, 0.4) transparent;
+  scrollbar-color: rgba(122, 162, 247, 0.45) transparent;
 }
 
 .scrollbar-thin::-webkit-scrollbar {
@@ -50,7 +59,7 @@ body {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(124, 243, 255, 0.35);
+  background: rgba(122, 162, 247, 0.35);
   border-radius: 999px;
 }
 
@@ -81,7 +90,7 @@ body {
 }
 
 .markdown a {
-  color: #7cf3ff;
+  color: #7aa2f7;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -89,7 +98,7 @@ body {
 .markdown code {
   font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
-  background: rgba(9, 14, 22, 0.6);
+  background: rgba(36, 40, 59, 0.7);
   padding: 0.1rem 0.35rem;
   border-radius: 0.35rem;
   font-size: 0.85em;
@@ -99,7 +108,7 @@ body {
   margin: 0;
   padding: 0.75rem;
   border-radius: 0.75rem;
-  background: rgba(7, 12, 20, 0.8);
+  background: rgba(15, 17, 26, 0.85);
   overflow-x: auto;
 }
 
@@ -108,19 +117,19 @@ body {
   padding: 0;
   display: block;
   font-size: 0.75rem;
-  color: #9ef7ff;
+  color: #7dcfff;
 }
 
 .markdown blockquote {
   margin: 0;
   padding-left: 0.75rem;
-  border-left: 2px solid rgba(124, 243, 255, 0.4);
-  color: #b7c6dd;
+  border-left: 2px solid rgba(122, 162, 247, 0.4);
+  color: #a9b1d6;
 }
 
 .markdown hr {
   border: 0;
-  border-top: 1px solid rgba(124, 243, 255, 0.2);
+  border-top: 1px solid rgba(122, 162, 247, 0.2);
 }
 
 .markdown table {
@@ -130,7 +139,7 @@ body {
 
 .markdown th,
 .markdown td {
-  border: 1px solid rgba(124, 243, 255, 0.2);
+  border: 1px solid rgba(122, 162, 247, 0.2);
   padding: 0.35rem 0.5rem;
 }
 

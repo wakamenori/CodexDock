@@ -135,9 +135,16 @@ export function Sidebar({
               disabled={running}
               type="button"
             >
-              <p className="font-semibold text-white">{thread.threadId}</p>
+              <p
+                className="font-semibold text-ink-100 truncate"
+                title={thread.threadId}
+              >
+                {thread.threadId}
+              </p>
               {thread.preview && (
-                <p className="mt-1 text-ink-300">{thread.preview}</p>
+                <p className="mt-1 truncate text-ink-300" title={thread.preview}>
+                  {thread.preview}
+                </p>
               )}
               {thread.updatedAt && (
                 <p className="mt-1 text-[10px] text-ink-300">
