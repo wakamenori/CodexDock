@@ -16,6 +16,7 @@ export type JsonObject = { [key: string]: JsonValue };
 
 export type ThreadSummary = {
   threadId: string;
+  cwd?: string;
   preview?: string;
   updatedAt?: string;
 };
@@ -72,9 +73,11 @@ export type WsOutboundMessage =
 
 export type ChatMessage = {
   id: string;
-  role: "agent" | "system";
+  role: "agent" | "system" | "user";
   text: string;
   createdAt: number;
+  itemId?: string;
+  pending?: boolean;
 };
 
 export type DiffEntry = {

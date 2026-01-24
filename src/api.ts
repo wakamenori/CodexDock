@@ -78,8 +78,8 @@ export const api = {
     );
     return data.thread.threadId;
   },
-  async resumeThread(repoId: string, threadId: string): Promise<void> {
-    await requestJson(`/api/repos/${repoId}/threads/${threadId}/resume`, {
+  async resumeThread(repoId: string, threadId: string): Promise<unknown> {
+    return requestJson(`/api/repos/${repoId}/threads/${threadId}/resume`, {
       method: "POST",
     });
   },
