@@ -19,12 +19,13 @@ import { WebSocketGateway } from "../server/websocketGateway";
 const waitForMessage = (
   ws: WebSocket,
   predicate: (msg: Record<string, unknown>) => boolean,
+  timeoutMs = 5000,
 ) =>
   new Promise<Record<string, unknown>>((resolve, reject) => {
     const timeout = setTimeout(() => {
       ws.off("message", onMessage);
       reject(new Error("timeout"));
-    }, 2000);
+    }, timeoutMs);
 
     const onMessage = (data: unknown) => {
       let raw: string | undefined;
@@ -145,6 +146,15 @@ describe("WebSocket", () => {
     const ws = new WebSocket(`ws://localhost:${port}/ws`);
     await new Promise((resolve) => ws.once("open", resolve));
 
+    const ackPromise = waitForMessage(
+      ws,
+      (msg) => msg.type === "subscribe_ack",
+    );
+    const statusPromise = waitForMessage(
+      ws,
+      (msg) => msg.type === "session_status",
+    );
+
     ws.send(
       JSON.stringify({
         type: "subscribe",
@@ -153,21 +163,19 @@ describe("WebSocket", () => {
       }),
     );
 
-    const ack = await waitForMessage(ws, (msg) => msg.type === "subscribe_ack");
+    const ack = await ackPromise;
     expect((ack.payload as { repoId?: string }).repoId).toBe(repo.repoId);
 
-    const status = await waitForMessage(
-      ws,
-      (msg) => msg.type === "session_status",
-    );
+    const status = await statusPromise;
     expect((status.payload as { status?: string }).status).toBe("connected");
 
     const session = sessions.get(repo.repoId);
-    session?.emitNotification("turn/started", { turn: { id: "turn_1" } });
-    const notif = await waitForMessage(
+    const notifPromise = waitForMessage(
       ws,
       (msg) => msg.type === "app_server_notification",
     );
+    session?.emitNotification("turn/started", { turn: { id: "turn_1" } });
+    const notif = await notifPromise;
     expect(
       (
         (notif.payload as { message?: { method?: string } }).message?.method ??

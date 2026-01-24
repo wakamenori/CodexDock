@@ -18,7 +18,7 @@
     "lint": "biome lint .",
     "format": "biome check --write .",
     "typecheck": "tsgo --noEmit -p tsconfig.app.json && tsgo --noEmit -p tsconfig.server.json",
-    "test": "vitest"
+    "test": "vitest --run"
   },
   "dependencies": {
     "@hono/node-server": "^1.12.0",
