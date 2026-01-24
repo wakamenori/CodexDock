@@ -4,6 +4,7 @@ import type {
   ApprovalRequest,
   ChatMessage,
   DiffEntry,
+  FileChangeEntry,
   JsonValue,
   Repo,
   SessionStatus,
@@ -26,10 +27,57 @@ import {
   extractTurnId,
   extractUserMessageText,
   getIdString,
+  getRecordId,
   normalizeRootPath,
   normalizeReasoningContent,
   normalizeReasoningSummary,
 } from "../utils/appUtils";
+
+const extractFileChangeEntries = (
+  item: Record<string, unknown>,
+): FileChangeEntry["changes"] => {
+  const changes = Array.isArray(item.changes) ? item.changes : [];
+  const result: FileChangeEntry["changes"] = [];
+  for (const change of changes) {
+    const record = asRecord(change);
+    if (!record) continue;
+    const path =
+      (typeof record.path === "string" && record.path) ||
+      (typeof record.filePath === "string" && record.filePath) ||
+      (typeof record.file === "string" && record.file) ||
+      "";
+    const kind = typeof record.kind === "string" ? record.kind : undefined;
+    const diff =
+      typeof record.diff === "string"
+        ? record.diff
+        : typeof record.patch === "string"
+          ? record.patch
+          : undefined;
+    result.push({ path, kind, diff });
+  }
+  return result;
+};
+
+const extractFileChangeStatus = (item: Record<string, unknown>) => {
+  const status = item.status;
+  return typeof status === "string" ? status : undefined;
+};
+
+const extractFileChangeTurnId = (
+  params: unknown,
+  item: Record<string, unknown>,
+) => {
+  const paramsTurnId = extractTurnId(params);
+  if (paramsTurnId) return paramsTurnId;
+  const turnRecord = asRecord(item.turn);
+  return (
+    getRecordId(item, "turnId") ??
+    getRecordId(item, "turn_id") ??
+    getRecordId(turnRecord, "id") ??
+    getRecordId(turnRecord, "turnId") ??
+    getRecordId(turnRecord, "turn_id")
+  );
+};
 
 type UseAppStateResult = {
   repos: Repo[];
@@ -45,6 +93,7 @@ type UseAppStateResult = {
   errorMessage: string | null;
   messages: ChatMessage[];
   diffs: DiffEntry[];
+  fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
   inputText: string;
   selectRepo: (repoId: string | null) => void;
@@ -77,6 +126,9 @@ export const useAppState = (): UseAppStateResult => {
   >({});
   const [diffsByThread, setDiffsByThread] = useState<
     Record<string, DiffEntry[]>
+  >({});
+  const [fileChangesByThread, setFileChangesByThread] = useState<
+    Record<string, Record<string, FileChangeEntry>>
   >({});
   const [approvalsByThread, setApprovalsByThread] = useState<
     Record<string, ApprovalRequest[]>
@@ -111,6 +163,9 @@ export const useAppState = (): UseAppStateResult => {
     ? (messagesByThread[selectedThreadId] ?? [])
     : [];
   const diffs = selectedThreadId ? (diffsByThread[selectedThreadId] ?? []) : [];
+  const fileChanges = selectedThreadId
+    ? (fileChangesByThread[selectedThreadId] ?? {})
+    : {};
   const approvals = selectedThreadId
     ? (approvalsByThread[selectedThreadId] ?? [])
     : [];
@@ -351,6 +406,23 @@ export const useAppState = (): UseAppStateResult => {
         });
       }
 
+      if (itemType === "fileChange") {
+        const itemChanges = extractFileChangeEntries(item);
+        const status = extractFileChangeStatus(item);
+        const turnId = extractFileChangeTurnId(params, item);
+        setFileChangesByThread((prev) => {
+          const threadMap = { ...(prev[threadId] ?? {}) };
+          const existing = threadMap[itemId];
+          threadMap[itemId] = {
+            itemId,
+            turnId: turnId ?? existing?.turnId,
+            status: status ?? existing?.status,
+            changes: itemChanges.length > 0 ? itemChanges : existing?.changes ?? [],
+            updatedAt: Date.now(),
+          };
+          return { ...prev, [threadId]: threadMap };
+        });
+      }
       return;
     }
 
@@ -656,6 +728,7 @@ export const useAppState = (): UseAppStateResult => {
     errorMessage,
     messages,
     diffs,
+    fileChanges,
     approvals,
     inputText,
     selectRepo,

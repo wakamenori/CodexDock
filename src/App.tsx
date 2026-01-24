@@ -18,6 +18,7 @@ export default function App() {
     errorMessage,
     messages,
     diffs,
+    fileChanges,
     approvals,
     inputText,
     selectRepo,
@@ -58,10 +59,12 @@ export default function App() {
           errorMessage={errorMessage}
           messages={messages}
           diffs={diffs}
+          fileChanges={fileChanges}
           approvals={approvals}
           inputText={inputText}
           selectedThreadId={selectedThreadId}
           selectedRepoId={selectedRepoId}
+          selectedRepoPath={selectedRepo?.path ?? null}
           onInputTextChange={(value) => setInputText(value)}
           onSend={handleSend}
           onApprove={handleApprove}

@@ -1,4 +1,9 @@
-import type { ApprovalRequest, ChatMessage, DiffEntry } from "../types";
+import type {
+  ApprovalRequest,
+  ChatMessage,
+  DiffEntry,
+  FileChangeEntry,
+} from "../types";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { ChatHistory } from "./ChatHistory";
 import { Composer } from "./Composer";
@@ -9,10 +14,12 @@ type MainPanelProps = {
   errorMessage: string | null;
   messages: ChatMessage[];
   diffs: DiffEntry[];
+  fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
   inputText: string;
   selectedThreadId: string | null;
   selectedRepoId: string | null;
+  selectedRepoPath: string | null;
   onInputTextChange: (value: string) => void;
   onSend: () => void | Promise<void>;
   onApprove: (
@@ -28,10 +35,12 @@ export function MainPanel({
   errorMessage,
   messages,
   diffs,
+  fileChanges,
   approvals,
   inputText,
   selectedThreadId,
   selectedRepoId,
+  selectedRepoPath,
   onInputTextChange,
   onSend,
   onApprove,
@@ -43,7 +52,7 @@ export function MainPanel({
           <p className="text-xs uppercase tracking-[0.2em] text-ink-300">
             Active Repo
           </p>
-          <p className="text-lg font-semibold text-white">
+          <p className="text-lg font-semibold text-ink-100">
             {selectedRepoName ?? "Select a repo"}
           </p>
         </div>
@@ -66,7 +75,9 @@ export function MainPanel({
 
       <ApprovalPanel
         approvals={approvals}
+        fileChanges={fileChanges}
         selectedRepoId={selectedRepoId}
+        selectedRepoPath={selectedRepoPath}
         onApprove={onApprove}
       />
 

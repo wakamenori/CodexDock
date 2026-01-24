@@ -88,6 +88,20 @@ export type DiffEntry = {
   updatedAt: number;
 };
 
+export type FileChange = {
+  path: string;
+  kind?: string;
+  diff?: string;
+};
+
+export type FileChangeEntry = {
+  itemId: string;
+  turnId?: string;
+  status?: string;
+  changes: FileChange[];
+  updatedAt: number;
+};
+
 export type ApprovalRequest = {
   rpcId: number | string;
   method: string;
