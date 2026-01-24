@@ -1,0 +1,55 @@
+{
+  "name": "codexdock",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"pnpm:dev:server\" \"pnpm:dev:web\"",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:web": "vite",
+    "build": "pnpm run build:web && pnpm run build:server",
+    "build:web": "vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "preview": "vite preview",
+    "start": "node dist/server/index.js",
+    "lint": "biome lint .",
+    "format": "biome check --write .",
+    "typecheck": "tsgo --noEmit -p tsconfig.app.json && tsgo --noEmit -p tsconfig.server.json",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "hono": "^4.5.4",
+    "pino": "^8.21.0",
+    "pino-http": "^9.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.18.0",
+    "@hono/node-server": "^1.12.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.8.3",
+    "@testing-library/jest-dom": "^6.4.6",
+    "@testing-library/react": "^16.0.0",
+    "@types/node": "^22.10.7",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "get-port": "^7.1.0",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.10",
+    "tsx": "^4.19.2",
+    "@typescript/native-preview": "^7.0.0-dev.20250906.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@types/ws": "^8.5.12"
+  },
+  "volta": {
+    "node": "22.22.0"
+  }
+}

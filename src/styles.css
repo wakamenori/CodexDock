@@ -1,0 +1,55 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg-top: #0b0f14;
+  --bg-mid: #121c2a;
+  --bg-glow: #0f2a33;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(
+      1200px 500px at 20% 0%,
+      rgba(79, 255, 193, 0.08),
+      transparent 60%
+    ),
+    radial-gradient(
+      800px 600px at 90% 10%,
+      rgba(124, 243, 255, 0.12),
+      transparent 65%
+    ), linear-gradient(180deg, var(--bg-top), var(--bg-mid));
+  color: #d7e2f2;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(79, 255, 193, 0.25);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 243, 255, 0.4) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(124, 243, 255, 0.35);
+  border-radius: 999px;
+}
