@@ -1,5 +1,6 @@
+import { normalizeRootPath } from "../shared/paths";
+import { asRecord } from "../shared/records";
 import type { ApprovalRequest, FileChangeEntry } from "../types";
-import { asRecord, normalizeRootPath } from "../utils/appUtils";
 import { DiffViewer } from "./DiffViewer";
 
 type ApprovalPanelProps = {
@@ -104,30 +105,30 @@ export function ApprovalPanel({
             >
               {isFileChangeApproval && (
                 <div className="grid gap-3">
-                  {fileChange?.changes.length
-                    ? fileChange.changes.map((change, index) => (
-                        <div
-                          key={`${approval.rpcId}-${change.path}-${index}`}
-                          className="rounded-lg border border-ink-800 bg-ink-900/60 px-3 py-2"
-                        >
-                          <p className="text-xs font-semibold text-ink-100">
-                            {toRelativePath(change.path || "", selectedRepoPath) ||
-                              "(unknown file)"}
-                          </p>
-                          {change.diff ? (
-                            <DiffViewer diffText={change.diff} />
-                          ) : (
-                            <p className="mt-2 text-xs text-ink-400">
-                              diff unavailable.
-                            </p>
-                          )}
-                        </div>
-                      ))
-                    : (
-                        <p className="text-xs text-ink-400">
-                          diff unavailable.
+                  {fileChange?.changes.length ? (
+                    fileChange.changes.map((change, index) => (
+                      <div
+                        key={`${approval.rpcId}-${change.path}-${index}`}
+                        className="rounded-lg border border-ink-800 bg-ink-900/60 px-3 py-2"
+                      >
+                        <p className="text-xs font-semibold text-ink-100">
+                          {toRelativePath(
+                            change.path || "",
+                            selectedRepoPath,
+                          ) || "(unknown file)"}
                         </p>
-                      )}
+                        {change.diff ? (
+                          <DiffViewer diffText={change.diff} />
+                        ) : (
+                          <p className="mt-2 text-xs text-ink-400">
+                            diff unavailable.
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-ink-400">diff unavailable.</p>
+                  )}
                 </div>
               )}
               {isCommandApproval && (

@@ -1,14 +1,11 @@
-import type { ChatMessage } from "../types";
-
-export const createRequestId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+import { normalizeRootPath as normalizeRootPathShared } from "../../../shared/paths";
+import { asRecord, getIdString, getRecordId } from "../../../shared/records";
+import type { ChatMessage, FileChangeEntry } from "../../../types";
 
 const REASONING_SUMMARY_LIMIT = 4000;
 const REASONING_CONTENT_LIMIT = 20000;
 
-export const truncateText = (value: string, limit: number) =>
+const truncateText = (value: string, limit: number) =>
   value.length > limit ? value.slice(0, limit) : value;
 
 export const normalizeReasoningSummary = (value: string) =>
@@ -23,40 +20,15 @@ export const appendReasoningSummary = (current: string, delta: string) =>
 export const appendReasoningContent = (current: string, delta: string) =>
   normalizeReasoningContent(`${current}${delta}`);
 
-export const formatTime = (value?: string) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-};
+export const normalizeRootPath = (value?: string) =>
+  normalizeRootPathShared(value);
 
-export const asRecord = (
-  value: unknown,
-): Record<string, unknown> | undefined =>
-  typeof value === "object" && value !== null
-    ? (value as Record<string, unknown>)
-    : undefined;
+export const createRequestId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-export const getIdString = (value: unknown): string | undefined => {
-  if (typeof value === "string") return value;
-  if (typeof value === "number") return String(value);
-  return undefined;
-};
-
-export const getRecordId = (
-  record: Record<string, unknown> | undefined,
-  key: string,
-): string | undefined => {
-  if (!record) return undefined;
-  return getIdString(record[key]);
-};
-
-export const normalizeRootPath = (value?: string): string => {
-  if (!value) return "";
-  return value.replace(/\\/g, "/").replace(/\/+$/g, "");
-};
-
-export const extractThreadId = (params: unknown) => {
+export const parseThreadId = (params: unknown): string | undefined => {
   const record = asRecord(params);
   const threadRecord = asRecord(record?.thread);
   const itemRecord = asRecord(record?.item);
@@ -78,7 +50,7 @@ export const extractThreadId = (params: unknown) => {
   );
 };
 
-export const extractTurnId = (params: unknown) => {
+export const parseTurnId = (params: unknown): string | undefined => {
   const record = asRecord(params);
   const turnRecord = asRecord(record?.turn);
   return (
@@ -91,7 +63,7 @@ export const extractTurnId = (params: unknown) => {
   );
 };
 
-export const extractDeltaText = (params: unknown) => {
+export const parseDeltaText = (params: unknown) => {
   const record = asRecord(params);
   const directDelta = record?.delta;
   if (typeof directDelta === "string") return directDelta;
@@ -104,12 +76,12 @@ export const extractDeltaText = (params: unknown) => {
   return typeof candidate === "string" ? candidate : "";
 };
 
-export const extractItemRecord = (params: unknown) => {
+export const parseItemRecord = (params: unknown) => {
   const record = asRecord(params);
   return asRecord(record?.item);
 };
 
-export const extractItemId = (params: unknown, fallback: string) => {
+export const parseItemId = (params: unknown, fallback: string) => {
   const record = asRecord(params);
   const itemRecord = asRecord(record?.item);
   return (
@@ -118,6 +90,43 @@ export const extractItemId = (params: unknown, fallback: string) => {
     getRecordId(itemRecord, "id") ??
     fallback
   );
+};
+
+export const parseUserMessageText = (item: Record<string, unknown>): string => {
+  const content = item.content;
+  if (Array.isArray(content)) {
+    const parts: string[] = [];
+    for (const entry of content) {
+      const entryRecord = asRecord(entry);
+      if (!entryRecord) continue;
+      const text = entryRecord.text;
+      if (typeof text === "string") {
+        parts.push(text);
+      }
+    }
+    if (parts.length > 0) return parts.join("\n");
+    if (content.length > 0) return "[non-text input]";
+  }
+  const text = item.text;
+  return typeof text === "string" ? text : "";
+};
+
+export const parseAgentMessageText = (
+  item: Record<string, unknown>,
+): string => {
+  const text = item.text;
+  return typeof text === "string" ? text : "";
+};
+
+export const parseDiffText = (params: unknown) => {
+  const record = asRecord(params);
+  const diffRecord = asRecord(record?.diff);
+  const candidate =
+    diffRecord?.text ?? diffRecord?.patch ?? record?.diff ?? record?.patch;
+  if (typeof candidate === "string") {
+    return candidate;
+  }
+  return JSON.stringify(params ?? {}, null, 2);
 };
 
 const extractResumeItems = (result: unknown): Record<string, unknown>[] => {
@@ -152,7 +161,7 @@ export const buildMessagesFromResume = (
     const itemType = item.type;
     const itemId = getRecordId(item, "id") ?? `${threadId}-${idx}`;
     if (itemType === "userMessage") {
-      const text = extractUserMessageText(item);
+      const text = parseUserMessageText(item);
       if (text) {
         messages.push({
           id: itemId,
@@ -165,7 +174,7 @@ export const buildMessagesFromResume = (
       continue;
     }
     if (itemType === "agentMessage" || itemType === "assistantMessage") {
-      const text = extractAgentMessageText(item);
+      const text = parseAgentMessageText(item);
       if (text) {
         messages.push({
           id: itemId,
@@ -177,10 +186,8 @@ export const buildMessagesFromResume = (
       }
     }
     if (itemType === "reasoning") {
-      const summary =
-        typeof item.summary === "string" ? item.summary : "";
-      const content =
-        typeof item.content === "string" ? item.content : "";
+      const summary = typeof item.summary === "string" ? item.summary : "";
+      const content = typeof item.content === "string" ? item.content : "";
       messages.push({
         id: itemId,
         itemId,
@@ -195,37 +202,48 @@ export const buildMessagesFromResume = (
   return messages;
 };
 
-export const extractUserMessageText = (item: Record<string, unknown>): string => {
-  const content = item.content;
-  if (Array.isArray(content)) {
-    const parts: string[] = [];
-    for (const entry of content) {
-      const entryRecord = asRecord(entry);
-      if (!entryRecord) continue;
-      const text = entryRecord.text;
-      if (typeof text === "string") {
-        parts.push(text);
-      }
-    }
-    if (parts.length > 0) return parts.join("\n");
-    if (content.length > 0) return "[non-text input]";
+export const parseFileChangeEntries = (
+  item: Record<string, unknown>,
+): FileChangeEntry["changes"] => {
+  const changes = Array.isArray(item.changes) ? item.changes : [];
+  const result: FileChangeEntry["changes"] = [];
+  for (const change of changes) {
+    const record = asRecord(change);
+    if (!record) continue;
+    const path =
+      (typeof record.path === "string" && record.path) ||
+      (typeof record.filePath === "string" && record.filePath) ||
+      (typeof record.file === "string" && record.file) ||
+      "";
+    const kind = typeof record.kind === "string" ? record.kind : undefined;
+    const diff =
+      typeof record.diff === "string"
+        ? record.diff
+        : typeof record.patch === "string"
+          ? record.patch
+          : undefined;
+    result.push({ path, kind, diff });
   }
-  const text = item.text;
-  return typeof text === "string" ? text : "";
+  return result;
 };
 
-export const extractAgentMessageText = (item: Record<string, unknown>): string => {
-  const text = item.text;
-  return typeof text === "string" ? text : "";
+export const parseFileChangeStatus = (item: Record<string, unknown>) => {
+  const status = item.status;
+  return typeof status === "string" ? status : undefined;
 };
 
-export const extractDiffText = (params: unknown) => {
-  const record = asRecord(params);
-  const diffRecord = asRecord(record?.diff);
-  const candidate =
-    diffRecord?.text ?? diffRecord?.patch ?? record?.diff ?? record?.patch;
-  if (typeof candidate === "string") {
-    return candidate;
-  }
-  return JSON.stringify(params ?? {}, null, 2);
+export const parseFileChangeTurnId = (
+  params: unknown,
+  item: Record<string, unknown>,
+) => {
+  const paramsTurnId = parseTurnId(params);
+  if (paramsTurnId) return paramsTurnId;
+  const turnRecord = asRecord(item.turn);
+  return (
+    getRecordId(item, "turnId") ??
+    getRecordId(item, "turn_id") ??
+    getRecordId(turnRecord, "id") ??
+    getRecordId(turnRecord, "turnId") ??
+    getRecordId(turnRecord, "turn_id")
+  );
 };

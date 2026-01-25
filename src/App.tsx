@@ -1,7 +1,7 @@
 import { HeaderBar } from "./components/HeaderBar";
 import { MainPanel } from "./components/MainPanel";
 import { Sidebar } from "./components/Sidebar";
-import { useAppState } from "./hooks/useAppState";
+import { useConversationState } from "./modules/conversation/ui/useConversationState";
 
 export default function App() {
   const {
@@ -30,7 +30,7 @@ export default function App() {
     handleSelectThread,
     handleApprove,
     handleSend,
-  } = useAppState();
+  } = useConversationState();
 
   return (
     <div className="h-screen flex flex-col gap-4 p-4 overflow-hidden">

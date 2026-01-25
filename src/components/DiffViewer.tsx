@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { parseDiffLines, type DiffLine } from "../diff";
+import { type DiffLine, parseDiffLines } from "../diff";
 
 type DiffViewerProps = {
   diffText: string;

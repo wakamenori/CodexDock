@@ -54,7 +54,9 @@ export function ChatHistory({
               } ${message.pending ? "opacity-70" : ""}`}
             >
               {message.pending && (
-                <p className={`text-xs text-ink-300 ${isUser ? "text-right" : ""}`}>
+                <p
+                  className={`text-xs text-ink-300 ${isUser ? "text-right" : ""}`}
+                >
                   pending
                 </p>
               )}

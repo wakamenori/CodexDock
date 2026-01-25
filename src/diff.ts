@@ -97,7 +97,6 @@ export const parseDiffLines = (diffText: string): DiffLine[] => {
         oldNumber: null,
         newNumber: null,
       });
-      continue;
     }
   }
   return result;

@@ -1,5 +1,5 @@
+import { formatTime } from "../shared/date";
 import type { Repo, SessionStatus, ThreadSummary } from "../types";
-import { formatTime } from "../utils/appUtils";
 
 type SidebarProps = {
   repos: Repo[];
@@ -90,9 +90,7 @@ export function Sidebar({
       </div>
 
       <div className="flex items-center justify-between text-xs">
-        <span className="uppercase tracking-[0.2em] text-ink-300">
-          Session
-        </span>
+        <span className="uppercase tracking-[0.2em] text-ink-300">Session</span>
         <span
           className={`rounded-full px-2 py-1 text-xs font-semibold ${
             sessionStatus === "connected"
@@ -142,7 +140,10 @@ export function Sidebar({
                 {thread.threadId}
               </p>
               {thread.preview && (
-                <p className="mt-1 truncate text-ink-300" title={thread.preview}>
+                <p
+                  className="mt-1 truncate text-ink-300"
+                  title={thread.preview}
+                >
                   {thread.preview}
                 </p>
               )}

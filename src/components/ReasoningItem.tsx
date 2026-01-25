@@ -66,19 +66,13 @@ export function ReasoningItem({ message }: ReasoningItemProps) {
                 className="h-3.5 w-3.5"
                 aria-hidden="true"
               >
-                <path
-                  d="M9 4.5c-2.5 0-4.5 2-4.5 4.5 0 1.7.9 3.1 2.2 3.9-.4.7-.7 1.5-.7 2.6 0 2.5 2 4.5 4.5 4.5h1.5v-3H10.5c-.9 0-1.5-.6-1.5-1.5s.6-1.5 1.5-1.5H12V9H9c-.9 0-1.5-.6-1.5-1.5S8.1 6 9 6h3V4.5H9Z"
-                />
-                <path
-                  d="M15 4.5c2.5 0 4.5 2 4.5 4.5 0 1.7-.9 3.1-2.2 3.9.4.7.7 1.5.7 2.6 0 2.5-2 4.5-4.5 4.5H12v-3h1.5c.9 0 1.5-.6 1.5-1.5s-.6-1.5-1.5-1.5H12V9h3c.9 0 1.5-.6 1.5-1.5S15.9 6 15 6h-3V4.5h3Z"
-                />
+                <path d="M9 4.5c-2.5 0-4.5 2-4.5 4.5 0 1.7.9 3.1 2.2 3.9-.4.7-.7 1.5-.7 2.6 0 2.5 2 4.5 4.5 4.5h1.5v-3H10.5c-.9 0-1.5-.6-1.5-1.5s.6-1.5 1.5-1.5H12V9H9c-.9 0-1.5-.6-1.5-1.5S8.1 6 9 6h3V4.5H9Z" />
+                <path d="M15 4.5c2.5 0 4.5 2 4.5 4.5 0 1.7-.9 3.1-2.2 3.9.4.7.7 1.5.7 2.6 0 2.5-2 4.5-4.5 4.5H12v-3h1.5c.9 0 1.5-.6 1.5-1.5s-.6-1.5-1.5-1.5H12V9h3c.9 0 1.5-.6 1.5-1.5S15.9 6 15 6h-3V4.5h3Z" />
               </svg>
             </span>
             <span>Reasoning</span>
           </div>
-          <p className="mt-2 text-sm font-semibold text-ink-100">
-            {title}
-          </p>
+          <p className="mt-2 text-sm font-semibold text-ink-100">{title}</p>
         </div>
         <span className="text-[10px] uppercase tracking-[0.2em] text-ink-400">
           {expanded ? "hide" : "show"}
