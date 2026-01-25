@@ -18,6 +18,7 @@ export type ThreadSummary = {
   threadId: string;
   cwd?: string;
   preview?: string;
+  createdAt?: string;
   updatedAt?: string;
 };
 

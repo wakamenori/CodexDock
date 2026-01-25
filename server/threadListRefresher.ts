@@ -38,6 +38,16 @@ export class ThreadListRefresher {
         getArray(result, "items") ??
         getArray(result, "data") ??
         [];
+      const rawSummary = summarizeThreadListRaw(threads);
+      this.logger.info(
+        {
+          component: "thread_list_refresher",
+          repoId,
+          threadCount: rawSummary.length,
+          threads: rawSummary,
+        },
+        "thread_list_raw",
+      );
       const normalized = threads
         .map((item) => {
           const record = isRecord(item) ? item : undefined;
@@ -47,12 +57,24 @@ export class ThreadListRefresher {
             threadId,
             cwd: getStringValue(record, "cwd"),
             preview: getStringValue(record, "preview"),
+            createdAt:
+              getTimeValue(record, "createdAt") ??
+              getTimeValue(record, "updatedAt"),
             updatedAt:
               getTimeValue(record, "updatedAt") ??
               getTimeValue(record, "createdAt"),
           };
         })
         .filter((item) => Boolean(item.threadId));
+      this.logger.info(
+        {
+          component: "thread_list_refresher",
+          repoId,
+          threadCount: normalized.length,
+          threads: summarizeNormalizedThreads(normalized),
+        },
+        "thread_list_normalized",
+      );
       this.gateway.broadcastToRepo(repoId, {
         type: "thread_list_updated",
         payload: { repoId, threads: normalized },
@@ -90,3 +112,31 @@ const getTimeValue = (
   }
   return undefined;
 };
+
+const summarizeThreadListRaw = (threads: unknown[]) =>
+  threads.map((item) => {
+    const record = isRecord(item) ? item : undefined;
+    const preview = record?.preview;
+    return {
+      id: record?.id ?? null,
+      threadId: record?.threadId ?? null,
+      createdAt: record?.createdAt ?? null,
+      updatedAt: record?.updatedAt ?? null,
+      previewLength: typeof preview === "string" ? preview.length : 0,
+    };
+  });
+
+const summarizeNormalizedThreads = (
+  threads: {
+    threadId?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    preview?: string;
+  }[],
+) =>
+  threads.map((thread) => ({
+    threadId: thread.threadId ?? null,
+    createdAt: thread.createdAt ?? null,
+    updatedAt: thread.updatedAt ?? null,
+    previewLength: thread.preview?.length ?? 0,
+  }));

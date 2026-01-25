@@ -62,6 +62,14 @@ export type UseAppStateResult = {
   handleSend: () => Promise<void>;
 };
 
+const summarizeThreadsForLog = (threads: ThreadSummary[]) =>
+  threads.map((thread) => ({
+    threadId: thread.threadId,
+    createdAt: thread.createdAt ?? null,
+    updatedAt: thread.updatedAt ?? null,
+    previewLength: thread.preview?.length ?? 0,
+  }));
+
 export const useConversationState = (): UseAppStateResult => {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
@@ -322,6 +330,11 @@ export const useConversationState = (): UseAppStateResult => {
           }));
           break;
         case "thread_list_updated":
+          console.info("thread_list_updated", {
+            repoId: message.payload.repoId,
+            threadCount: message.payload.threads.length,
+            threads: summarizeThreadsForLog(message.payload.threads),
+          });
           setThreadsByRepo((prev) => ({
             ...prev,
             [message.payload.repoId]: message.payload.threads,
@@ -393,6 +406,11 @@ export const useConversationState = (): UseAppStateResult => {
       try {
         await api.startSession(selectedRepoId);
         const list = await api.listThreads(selectedRepoId);
+        console.info("thread_list_http", {
+          repoId: selectedRepoId,
+          threadCount: list.length,
+          threads: summarizeThreadsForLog(list),
+        });
         setThreadsByRepo((prev) => ({ ...prev, [selectedRepoId]: list }));
         const filtered = normalizedRepoPath
           ? list.filter(

@@ -144,18 +144,25 @@ describe("HTTP API edge cases", () => {
     const res = await context.app.request(`/api/repos/${repo.repoId}/threads`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      threads: { threadId: string; preview?: string; updatedAt?: string }[];
+      threads: {
+        threadId: string;
+        preview?: string;
+        createdAt?: string;
+        updatedAt?: string;
+      }[];
     };
 
     expect(body.threads).toEqual([
       {
         threadId: "7",
         preview: "hello",
+        createdAt: new Date(1_700_000_000 * 1000).toISOString(),
         updatedAt: new Date(1_700_000_000 * 1000).toISOString(),
       },
       {
         threadId: "thr_8",
         preview: "world",
+        createdAt: new Date(1_700_000_000_000).toISOString(),
         updatedAt: new Date(1_700_000_000_000).toISOString(),
       },
     ]);

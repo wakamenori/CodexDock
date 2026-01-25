@@ -60,6 +60,12 @@ export function Sidebar({
       : "";
 
   const getThreadTime = (value?: string) => formatRelativeTime(value);
+  const getThreadTimestamp = (thread: ThreadSummary) => {
+    const value = thread.createdAt ?? thread.updatedAt;
+    if (!value) return 0;
+    const time = new Date(value).getTime();
+    return Number.isNaN(time) ? 0 : time;
+  };
 
   const toggleRepo = (repoId: string) => {
     setExpandedRepos((prev) => ({ ...prev, [repoId]: !prev[repoId] }));
@@ -67,11 +73,9 @@ export function Sidebar({
 
   const sortThreads = (threads: ThreadSummary[]) =>
     [...threads].sort((a, b) => {
-      const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-      const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-      const safeA = Number.isNaN(timeA) ? 0 : timeA;
-      const safeB = Number.isNaN(timeB) ? 0 : timeB;
-      if (safeA !== safeB) return safeB - safeA;
+      const timeA = getThreadTimestamp(a);
+      const timeB = getThreadTimestamp(b);
+      if (timeA !== timeB) return timeB - timeA;
       return a.threadId.localeCompare(b.threadId);
     });
 
@@ -133,7 +137,9 @@ export function Sidebar({
                   {visibleThreads.map((thread) => {
                     const preview = thread.preview?.trim();
                     const label = preview || thread.threadId;
-                    const timeLabel = getThreadTime(thread.updatedAt);
+                    const timeLabel = getThreadTime(
+                      thread.createdAt ?? thread.updatedAt,
+                    );
                     const isThreadSelected =
                       isSelected && selectedThreadId === thread.threadId;
                     const threadStatus =

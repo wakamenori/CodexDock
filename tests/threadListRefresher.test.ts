@@ -41,11 +41,13 @@ describe("ThreadListRefresher", () => {
       {
         threadId: "12",
         preview: "hello",
+        createdAt: new Date(1_700_000_000 * 1000).toISOString(),
         updatedAt: new Date(1_700_000_000 * 1000).toISOString(),
       },
       {
         threadId: "thr_2",
         preview: "world",
+        createdAt: new Date(1_700_000_000_000).toISOString(),
         updatedAt: new Date(1_700_000_000_000).toISOString(),
       },
     ];

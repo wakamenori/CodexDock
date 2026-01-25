@@ -58,6 +58,9 @@ const mapThreadList = (result: unknown) => {
         threadId,
         cwd: getString(record, "cwd"),
         preview: getString(record, "preview"),
+        createdAt:
+          getTimeString(record, "createdAt") ??
+          getTimeString(record, "updatedAt"),
         updatedAt:
           getTimeString(record, "updatedAt") ??
           getTimeString(record, "createdAt"),
@@ -65,6 +68,35 @@ const mapThreadList = (result: unknown) => {
     })
     .filter((item) => Boolean(item.threadId));
 };
+
+const summarizeThreadListRaw = (result: unknown) => {
+  const threads =
+    getArray(result, "threads") ??
+    getArray(result, "items") ??
+    getArray(result, "data") ??
+    [];
+  return threads.map((item) => {
+    const record = isRecord(item) ? item : undefined;
+    const preview = getString(record, "preview");
+    return {
+      id: record?.id ?? null,
+      threadId: record?.threadId ?? null,
+      createdAt: record?.createdAt ?? null,
+      updatedAt: record?.updatedAt ?? null,
+      previewLength: preview?.length ?? 0,
+    };
+  });
+};
+
+const summarizeNormalizedThreads = (
+  threads: ReturnType<typeof mapThreadList>,
+) =>
+  threads.map((thread) => ({
+    threadId: thread.threadId,
+    createdAt: thread.createdAt ?? null,
+    updatedAt: thread.updatedAt ?? null,
+    previewLength: thread.preview?.length ?? 0,
+  }));
 
 const extractTurnId = (result: unknown) => {
   const record = isRecord(result) ? result : undefined;
@@ -250,7 +282,27 @@ export const createApp = (options: CreateAppOptions) => {
     try {
       const session = await manager.getOrStart(repoId);
       const result = await session.request("thread/list");
-      return c.json({ threads: mapThreadList(result) });
+      const rawSummary = summarizeThreadListRaw(result);
+      logger.info(
+        {
+          component: "thread_list_http",
+          repoId,
+          threadCount: rawSummary.length,
+          threads: rawSummary,
+        },
+        "thread_list_raw",
+      );
+      const normalized = mapThreadList(result);
+      logger.info(
+        {
+          component: "thread_list_http",
+          repoId,
+          threadCount: normalized.length,
+          threads: summarizeNormalizedThreads(normalized),
+        },
+        "thread_list_normalized",
+      );
+      return c.json({ threads: normalized });
     } catch (error) {
       throw appServerError(error);
     }
