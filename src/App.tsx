@@ -14,7 +14,6 @@ export default function App() {
     wsConnected,
     running,
     messages,
-    diffs,
     fileChanges,
     approvals,
     inputText,
@@ -47,7 +46,6 @@ export default function App() {
           selectedRepoName={selectedRepo?.name ?? null}
           running={running}
           messages={messages}
-          diffs={diffs}
           fileChanges={fileChanges}
           approvals={approvals}
           inputText={inputText}

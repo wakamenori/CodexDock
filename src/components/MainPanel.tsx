@@ -1,9 +1,4 @@
-import type {
-  ApprovalRequest,
-  ChatMessage,
-  DiffEntry,
-  FileChangeEntry,
-} from "../types";
+import type { ApprovalRequest, ChatMessage, FileChangeEntry } from "../types";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { ChatHistory } from "./ChatHistory";
 import { Composer } from "./Composer";
@@ -13,7 +8,6 @@ type MainPanelProps = {
   selectedRepoPath: string | null;
   running: boolean;
   messages: ChatMessage[];
-  diffs: DiffEntry[];
   fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
   inputText: string;
@@ -33,7 +27,6 @@ export function MainPanel({
   selectedRepoPath,
   running,
   messages,
-  diffs,
   fileChanges,
   approvals,
   inputText,
@@ -66,7 +59,6 @@ export function MainPanel({
 
       <ChatHistory
         messages={messages}
-        diffs={diffs}
         selectedThreadId={selectedThreadId}
         selectedRepoPath={selectedRepoPath}
       />

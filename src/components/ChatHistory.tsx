@@ -1,34 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { extractDiffFileNames } from "../diff";
 import { useAutoScroll } from "../hooks/useAutoScroll";
 import { toRelativePath } from "../shared/paths";
-import type { ChatMessage, DiffEntry } from "../types";
+import type { ChatMessage } from "../types";
 import { copyToClipboard } from "../utils/clipboard";
 import { DiffViewer } from "./DiffViewer";
 import { ReasoningItem } from "./ReasoningItem";
 
 type ChatHistoryProps = {
   messages: ChatMessage[];
-  diffs: DiffEntry[];
   selectedThreadId: string | null;
   selectedRepoPath: string | null;
 };
 
 export function ChatHistory({
   messages,
-  diffs,
   selectedThreadId,
   selectedRepoPath,
 }: ChatHistoryProps) {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const historyRef = useAutoScroll([
-    selectedThreadId,
-    messages.length,
-    diffs.length,
-  ]);
+  const historyRef = useAutoScroll([selectedThreadId, messages.length]);
 
   useEffect(() => {
     return () => {
@@ -217,19 +210,7 @@ export function ChatHistory({
         );
       })}
 
-      {diffs.map((diff) => (
-        <div
-          key={diff.turnId}
-          className="rounded-xl border border-neon-500/30 bg-ink-900/80 px-4 py-3"
-        >
-          <p className="text-xs text-neon-300">
-            {extractDiffFileNames(diff.diffText).join(", ") || diff.turnId}
-          </p>
-          <DiffViewer diffText={diff.diffText} />
-        </div>
-      ))}
-
-      {!messages.length && !diffs.length && (
+      {!messages.length && (
         <div className="rounded-xl border border-dashed border-ink-700 px-6 py-10 text-center text-sm text-ink-300">
           Start a turn to see the stream here.
         </div>
