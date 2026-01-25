@@ -28,7 +28,12 @@ export type ThreadStatusFlags = {
   unread: boolean;
 };
 
-export type ThreadUiStatus = "reviewing" | "processing" | "unread" | "ready";
+export type ThreadUiStatus =
+  | "approval"
+  | "reviewing"
+  | "processing"
+  | "unread"
+  | "ready";
 
 export type SessionStatus = "connected" | "starting" | "stopped" | "error";
 

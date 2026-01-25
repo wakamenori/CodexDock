@@ -229,15 +229,13 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
     message: { id: number | string; method: string; params?: JsonValue },
   ) => {
     const paramsRecord = asRecord(message.params);
+    const parsedThreadId = parseThreadId(message.params);
     const entry: ApprovalRequest = {
       rpcId: message.id,
       method: message.method,
       params: message.params,
       receivedAt: Date.now(),
-      threadId: paramsRecord
-        ? (getIdString(paramsRecord.threadId) ??
-          getIdString(paramsRecord.thread_id))
-        : undefined,
+      threadId: parsedThreadId,
       turnId: paramsRecord
         ? (getIdString(paramsRecord.turnId) ??
           getIdString(paramsRecord.turn_id))
@@ -250,6 +248,13 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
     const threadId = entry.threadId ?? store.getSelectedThreadId();
     if (!threadId) return;
     store.updateApprovals(threadId, (list) => [...list, entry]);
+    const selectedThreadId = store.getSelectedThreadId();
+    if (selectedThreadId && selectedThreadId !== threadId) {
+      store.updateThreadStatus(threadId, (status) => ({
+        ...status,
+        unread: true,
+      }));
+    }
   };
 
   return {

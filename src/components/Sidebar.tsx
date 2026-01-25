@@ -22,7 +22,7 @@ type SidebarProps = {
   selectedThreadId: string | null;
   onSelectRepo: (repoId: string | null) => void;
   onAddRepo: () => void;
-  onCreateThread: () => void;
+  onCreateThread: (repoId: string) => void;
   onSelectThread: (repoId: string, threadId: string) => void;
 };
 
@@ -43,6 +43,8 @@ export function Sidebar({
 
   const statusDot = (status: ThreadUiStatus) => {
     switch (status) {
+      case "approval":
+        return "bg-rose-400 shadow-[0_0_0_4px_rgba(251,113,133,0.25)]";
       case "reviewing":
         return "bg-teal-400 shadow-[0_0_0_4px_rgba(45,212,191,0.2)]";
       case "processing":
@@ -55,7 +57,7 @@ export function Sidebar({
   };
 
   const statusPulse = (status: ThreadUiStatus) =>
-    status === "processing" || status === "reviewing"
+    status === "approval" || status === "processing" || status === "reviewing"
       ? "animate-pulseSoft"
       : "";
 
@@ -118,19 +120,17 @@ export function Sidebar({
                   >
                     {repo.name}
                   </button>
-                  {isSelected && (
-                    <button
-                      className="rounded-full border border-ink-600 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-ink-300 transition hover:border-neon-400 hover:text-ink-100"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onCreateThread();
-                      }}
-                      disabled={running}
-                      type="button"
-                    >
-                      New
-                    </button>
-                  )}
+                  <button
+                    className="rounded-full border border-ink-600 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-ink-300 transition hover:border-neon-400 hover:text-ink-100"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCreateThread(repo.repoId);
+                    }}
+                    disabled={running}
+                    type="button"
+                  >
+                    New
+                  </button>
                 </div>
 
                 <div className="mt-2 flex flex-col gap-1">

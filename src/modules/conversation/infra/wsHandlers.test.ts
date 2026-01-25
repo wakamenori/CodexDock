@@ -122,6 +122,33 @@ describe("createWsEventHandlers", () => {
     expect(store.snapshots().approvals.t1).toHaveLength(1);
   });
 
+  it("marks unread on approval request for inactive thread only", () => {
+    const store = createStore("t1");
+    store.handlers.handleAppServerRequest("r1", {
+      id: 2,
+      method: "item/fileChange/requestApproval",
+      params: { threadId: "t2" },
+    });
+    expect(store.snapshots().threadStatus.t2.unread).toBe(true);
+    store.handlers.handleAppServerRequest("r1", {
+      id: 3,
+      method: "item/fileChange/requestApproval",
+      params: { threadId: "t1" },
+    });
+    expect(store.snapshots().threadStatus.t1?.unread ?? false).toBe(false);
+  });
+
+  it("uses nested thread id for approval requests", () => {
+    const store = createStore("t1");
+    store.handlers.handleAppServerRequest("r1", {
+      id: 4,
+      method: "item/commandExecution/requestApproval",
+      params: { thread: { id: "t2" } },
+    });
+    expect(store.snapshots().approvals.t2).toHaveLength(1);
+    expect(store.snapshots().threadStatus.t2.unread).toBe(true);
+  });
+
   it("sets active turn on start and clears on completion", () => {
     const store = createStore();
     store.handlers.handleAppServerNotification("r1", {

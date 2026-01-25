@@ -147,9 +147,22 @@ export const useConversationState = (): UseAppStateResult => {
   );
 
   const threadUiStatusByThread = useMemo(() => {
-    const entries = Object.entries(threadStatusByThread);
+    const threadIds = new Set<string>([
+      ...Object.keys(threadStatusByThread),
+      ...Object.keys(approvalsByThread),
+    ]);
     const statusMap: Record<string, ThreadUiStatus> = {};
-    for (const [threadId, status] of entries) {
+    for (const threadId of threadIds) {
+      const status = threadStatusByThread[threadId] ?? {
+        processing: false,
+        reviewing: false,
+        unread: false,
+      };
+      const approvals = approvalsByThread[threadId] ?? [];
+      if (approvals.length > 0) {
+        statusMap[threadId] = "approval";
+        continue;
+      }
       if (status.reviewing) {
         statusMap[threadId] = "reviewing";
         continue;
@@ -165,7 +178,7 @@ export const useConversationState = (): UseAppStateResult => {
       statusMap[threadId] = "ready";
     }
     return statusMap;
-  }, [threadStatusByThread]);
+  }, [approvalsByThread, threadStatusByThread]);
 
   useEffect(() => {
     selectedThreadIdRef.current = selectedThreadId;
@@ -586,21 +599,30 @@ export const useConversationState = (): UseAppStateResult => {
     updateThreadStatus,
   ]);
 
-  const handleCreateThread = useCallback(async () => {
-    if (!selectedRepoId) return;
-    try {
-      const threadId = await api.createThread(selectedRepoId);
-      await api.resumeThread(selectedRepoId, threadId);
-      setSelectedThreadId(threadId);
-      await api.updateRepo(selectedRepoId, { lastOpenedThreadId: threadId });
-      const list = await api.listThreads(selectedRepoId);
-      setThreadsByRepo((prev) => ({ ...prev, [selectedRepoId]: list }));
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to create thread",
-      );
-    }
-  }, [selectedRepoId]);
+  const handleCreateThread = useCallback(
+    async (targetRepoId?: string | null) => {
+      const repoId = targetRepoId ?? selectedRepoId;
+      if (!repoId) return;
+      try {
+        const threadId = await api.createThread(repoId);
+        if (repoId === selectedRepoId) {
+          await api.resumeThread(repoId, threadId);
+          setSelectedThreadId(threadId);
+          await api.updateRepo(repoId, { lastOpenedThreadId: threadId });
+          const list = await api.listThreads(repoId);
+          setThreadsByRepo((prev) => ({ ...prev, [repoId]: list }));
+          return;
+        }
+        pendingThreadSelectionRef.current = { repoId, threadId };
+        setSelectedRepoId(repoId);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to create thread",
+        );
+      }
+    },
+    [selectedRepoId],
+  );
 
   const handleSelectThread = useCallback(
     async (repoId: string, threadId: string) => {
