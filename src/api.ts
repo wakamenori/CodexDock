@@ -79,6 +79,23 @@ export const api = {
   async listModels(repoId: string): Promise<unknown> {
     return requestJson(`/api/repos/${repoId}/models`);
   },
+  async getModelSettings(): Promise<{
+    storedModel: string | null;
+    defaultModel: string | null;
+  }> {
+    return requestJson("/api/settings/model");
+  },
+  async updateModelSetting(model: string | null): Promise<string | null> {
+    const data = await requestJson<{ storedModel: string | null }>(
+      "/api/settings/model",
+      {
+        method: "PUT",
+        headers: jsonHeaders,
+        body: JSON.stringify({ model }),
+      },
+    );
+    return data.storedModel;
+  },
   async createThread(repoId: string, model?: string): Promise<string> {
     const options: RequestInit = { method: "POST" };
     if (model) {

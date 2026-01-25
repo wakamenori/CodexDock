@@ -74,7 +74,6 @@ const summarizeThreadsForLog = (threads: ThreadSummary[]) =>
     previewLength: thread.preview?.length ?? 0,
   }));
 
-const DEFAULT_MODEL = "gpt-5.2-codex";
 const NEW_THREAD_PREVIEW = "New thread";
 
 const getArrayValue = (
@@ -137,6 +136,26 @@ const extractModelIds = (payload: unknown): string[] => {
   return [];
 };
 
+const resolveSelectedModel = ({
+  storedModel,
+  defaultModel,
+  availableModels,
+  settingsLoaded,
+}: {
+  storedModel: string | null;
+  defaultModel: string | null;
+  availableModels: string[] | undefined;
+  settingsLoaded: boolean;
+}): string | null => {
+  if (!settingsLoaded) return storedModel;
+  if (!availableModels) return storedModel;
+  if (availableModels.length === 0) return null;
+  if (storedModel && availableModels.includes(storedModel)) return storedModel;
+  if (defaultModel && availableModels.includes(defaultModel))
+    return defaultModel;
+  return availableModels[0] ?? null;
+};
+
 export const useConversationState = (): UseAppStateResult => {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
@@ -166,9 +185,9 @@ export const useConversationState = (): UseAppStateResult => {
   const [availableModelsByRepo, setAvailableModelsByRepo] = useState<
     Record<string, string[]>
   >({});
-  const [modelByThread, setModelByThread] = useState<
-    Record<string, string | null>
-  >({});
+  const [storedModel, setStoredModel] = useState<string | null>(null);
+  const [defaultModel, setDefaultModel] = useState<string | null>(null);
+  const [modelSettingsLoaded, setModelSettingsLoaded] = useState(false);
   const [inputText, setInputText] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -202,12 +221,19 @@ export const useConversationState = (): UseAppStateResult => {
   const running = selectedThreadId
     ? Boolean(threadStatusByThread[selectedThreadId]?.processing)
     : false;
-  const selectedModel = selectedThreadId
-    ? (modelByThread[selectedThreadId] ?? null)
-    : null;
   const availableModels = selectedRepoId
     ? availableModelsByRepo[selectedRepoId]
     : undefined;
+  const selectedModel = useMemo(
+    () =>
+      resolveSelectedModel({
+        storedModel,
+        defaultModel,
+        availableModels,
+        settingsLoaded: modelSettingsLoaded,
+      }),
+    [availableModels, defaultModel, modelSettingsLoaded, storedModel],
+  );
 
   const repoGroups = useMemo(
     () =>
@@ -496,6 +522,22 @@ export const useConversationState = (): UseAppStateResult => {
   }, []);
 
   useEffect(() => {
+    void (async () => {
+      try {
+        const settings = await api.getModelSettings();
+        setStoredModel(settings.storedModel ?? null);
+        setDefaultModel(settings.defaultModel ?? null);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to load model",
+        );
+      } finally {
+        setModelSettingsLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     const missing = repos.filter(
       (repo) =>
         repo.repoId !== selectedRepoId &&
@@ -524,11 +566,7 @@ export const useConversationState = (): UseAppStateResult => {
         const models = extractModelIds(result);
         setAvailableModelsByRepo((prev) => {
           const next = { ...prev };
-          if (models.length > 0) {
-            next[selectedRepoId] = models;
-          } else {
-            delete next[selectedRepoId];
-          }
+          next[selectedRepoId] = models;
           return next;
         });
       } catch (error) {
@@ -701,32 +739,23 @@ export const useConversationState = (): UseAppStateResult => {
     updateThreadStatus,
   ]);
 
-  useEffect(() => {
-    if (!selectedRepoId || !selectedThreadId) return;
-    const models = availableModelsByRepo[selectedRepoId];
-    if (!models || models.length === 0) return;
-    const current = modelByThread[selectedThreadId];
-    if (!current) return;
-    if (!models.includes(current)) {
-      setModelByThread((prev) => ({ ...prev, [selectedThreadId]: null }));
-    }
-  }, [availableModelsByRepo, modelByThread, selectedRepoId, selectedThreadId]);
-
-  const resolveInitialModel = useCallback(
-    (repoId: string) => {
-      const models = availableModelsByRepo[repoId];
-      if (!models || models.length === 0) return DEFAULT_MODEL;
-      return models.includes(DEFAULT_MODEL) ? DEFAULT_MODEL : null;
-    },
-    [availableModelsByRepo],
-  );
-
   const handleModelChange = useCallback(
     (model: string | null) => {
-      if (!selectedThreadId) return;
-      setModelByThread((prev) => ({ ...prev, [selectedThreadId]: model }));
+      const previous = storedModel;
+      setStoredModel(model);
+      void (async () => {
+        try {
+          const stored = await api.updateModelSetting(model);
+          setStoredModel(stored ?? null);
+        } catch (error) {
+          setStoredModel(previous ?? null);
+          toast.error(
+            error instanceof Error ? error.message : "Failed to update model",
+          );
+        }
+      })();
     },
-    [selectedThreadId],
+    [storedModel],
   );
 
   const handleApprove = useCallback(
@@ -806,13 +835,13 @@ export const useConversationState = (): UseAppStateResult => {
     const originalText = inputText;
     const text = originalText.trim();
     if (!selectedRepoId || !selectedThreadId || !text) return;
-    const modelsLoaded =
-      availableModels !== undefined && availableModels.length > 0;
-    if (!selectedModel && modelsLoaded) {
+    const modelsLoaded = availableModels !== undefined;
+    const modelsReady = modelsLoaded && availableModels.length > 0;
+    if (!modelsReady || !selectedModel) {
       toast.error("Model is not set");
       return;
     }
-    const modelToSend = selectedModel ?? DEFAULT_MODEL;
+    const modelToSend = selectedModel;
     updateThreadStatus(selectedThreadId, (status) => ({
       ...status,
       processing: true,
@@ -887,12 +916,22 @@ export const useConversationState = (): UseAppStateResult => {
       const repoId = targetRepoId ?? selectedRepoId;
       if (!repoId) return;
       try {
-        const model = resolveInitialModel(repoId);
+        const models = availableModelsByRepo[repoId];
+        if (!models || models.length === 0) {
+          toast.error("Model is not set");
+          return;
+        }
+        const model = resolveSelectedModel({
+          storedModel,
+          defaultModel,
+          availableModels: models,
+          settingsLoaded: modelSettingsLoaded,
+        });
+        if (!model) {
+          toast.error("Model is not set");
+          return;
+        }
         const threadId = await api.createThread(repoId, model ?? undefined);
-        setModelByThread((prev) => ({
-          ...prev,
-          [threadId]: model ?? null,
-        }));
         const repo = repos.find((item) => item.repoId === repoId) ?? null;
         const now = new Date().toISOString();
         addOptimisticThread(repoId, {
@@ -921,8 +960,11 @@ export const useConversationState = (): UseAppStateResult => {
     [
       addOptimisticThread,
       applyThreadList,
+      availableModelsByRepo,
+      defaultModel,
+      modelSettingsLoaded,
       repos,
-      resolveInitialModel,
+      storedModel,
       selectedRepoId,
     ],
   );

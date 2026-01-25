@@ -39,19 +39,22 @@
 ---
 
 ## 永続化（アプリ側・最小）
-保存先例: `~/.yourapp/repos.json`（またはプロジェクト内 `data/repos.json`）
+保存先例: `~/.yourapp/dev.json` / `~/.yourapp/prd.json`（またはプロジェクト内 `data/dev.json` / `data/prd.json`）
 保存データ:
-- repoId: string（pathのハッシュ等）
-- name: string
-- path: string
-- lastOpenedThreadId?: string
+- repos: repo一覧
+  - repoId: string（pathのハッシュ等）
+  - name: string
+  - path: string
+  - lastOpenedThreadId?: string
+- settings: アプリ共通設定
+  - model?: string | null
 
 ---
 
 ## バックエンド構成（Hono）
 ### 主要コンポーネント
 1) RepoRegistry
-- repos.json のCRUD（読み/書き）
+- dev.json / prd.json のCRUD（読み/書き）
 - repoIdの生成（正規化済みpathのハッシュ）
 - path は正規化して保存する（絶対パス化 + 末尾スラッシュ除去 + 可能なら realpath 解決）
 - 同一の正規化pathが既に存在する場合は登録を拒否（409）
@@ -115,7 +118,7 @@ Base: `http://localhost:{port}`
 { "repos": [ { "repoId":"...", "name":"...", "path":"...", "lastOpenedThreadId":"..." } ] }
 ```
 * エラー条件:
-  * 500: repos.json の読み込み失敗
+  * 500: dev.json / prd.json の読み込み失敗
 
 #### POST /api/repos
 
@@ -136,7 +139,7 @@ Base: `http://localhost:{port}`
   * 400: name/path 欠落・型不正
   * 409: 同一pathのrepoが既に存在する / repoId衝突
   * 422: path が存在しない / 読み取り不可 / ディレクトリでない
-  * 500: repos.json の書き込み失敗
+  * 500: dev.json / prd.json の書き込み失敗
 
 #### PATCH /api/repos/:repoId
 
@@ -154,7 +157,7 @@ Base: `http://localhost:{port}`
 * エラー条件:
   * 400: bodyが空 / 型不正 / path を含む
   * 404: repoId が存在しない
-  * 500: repos.json の書き込み失敗
+  * 500: dev.json / prd.json の書き込み失敗
 
 #### DELETE /api/repos/:repoId
 
@@ -164,7 +167,37 @@ Base: `http://localhost:{port}`
 * 成功時は必要に応じて `session_status` を `stopped` で通知する
 * エラー条件:
   * 404: repoId が存在しない
-  * 500: セッション停止に失敗 / repos.json の書き込み失敗
+  * 500: セッション停止に失敗 / dev.json / prd.json の書き込み失敗
+
+### Settings
+
+#### GET /api/settings/model
+
+* 200
+
+```json
+{ "storedModel": "gpt-5.2-codex", "defaultModel": "gpt-5.2-codex" }
+```
+* 備考:
+  * `storedModel` はアプリ側の保存値（未設定なら `null`）
+  * `defaultModel` は環境変数 `CODEXDOCK_DEFAULT_MODEL` の値（未設定なら `null`）
+
+#### PUT /api/settings/model
+
+* body
+
+```json
+{ "model": "gpt-5.2-codex" }
+```
+
+* 200
+
+```json
+{ "storedModel": "gpt-5.2-codex" }
+```
+
+* エラー条件:
+  * 400: model 欠落 / 型不正（string または null のみ）
 
 ### Session（repoごと）
 
@@ -482,7 +515,7 @@ or
 ### 記録ポイント（最小）
 
 * サーバ起動/停止、設定読み込み失敗
-* Repo CRUD（追加/削除/更新）、repos.json 書き込み失敗
+* Repo CRUD（追加/削除/更新）、dev.json / prd.json 書き込み失敗
 * AppServerSession の spawn/initialize/stop 成否
 * JSON-RPC request/response/notification の送受信（件数/サイズ、エラー時の詳細）
 * WS 接続/切断/subscribe/unsubscribe
@@ -505,7 +538,7 @@ or
 * テスト内でローカルサーバを空きポート起動
 * wsクライアントで /ws に接続し subscribe を送る
 * サーバから session_status 等が返ることを確認
-* サーバ起動時に repos.json の全repoが自動起動されることを確認する（Fakeで開始イベントを生成）
+* サーバ起動時に dev.json / prd.json の全repoが自動起動されることを確認する（Fakeで開始イベントを生成）
 
 ### 3) app-server依存を減らすための Fake
 
@@ -523,7 +556,7 @@ or
 ## 実装タスク（順序）
 
 1. Honoサーバ雛形（HTTP + WS）とディレクトリ構成
-2. RepoRegistry（repos.json）CRUD + HTTP endpoints
+2. RepoRegistry（dev.json / prd.json）CRUD + HTTP endpoints
 3. AppServerSession（spawn + JSONL RPC + initialize）
 4. AppServerManager（repoId -> session）
 5. Threads API（thread/list/start/resume をapp-serverへブリッジ）

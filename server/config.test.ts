@@ -87,18 +87,16 @@ describe("resolveDataDir", () => {
 describe("resolveRepoFileName", () => {
   it("uses dev file name for development", () => {
     expect(resolveRepoFileName({ env: { NODE_ENV: "development" } })).toBe(
-      "dev.repos.json",
+      "dev.json",
     );
   });
 
   it("uses dev file name for test", () => {
-    expect(resolveRepoFileName({ env: { NODE_ENV: "test" } })).toBe(
-      "dev.repos.json",
-    );
+    expect(resolveRepoFileName({ env: { NODE_ENV: "test" } })).toBe("dev.json");
   });
 
   it("uses prod file name by default", () => {
-    expect(resolveRepoFileName({ env: {} })).toBe("prd.repos.json");
+    expect(resolveRepoFileName({ env: {} })).toBe("prd.json");
   });
 });
 

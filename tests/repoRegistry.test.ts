@@ -80,4 +80,19 @@ describe("RepoRegistry", () => {
       "not_found",
     );
   });
+
+  it("persists settings without losing repositories", async () => {
+    const repoDir = await mkdtemp(path.join(os.tmpdir(), "codexdock-repo-"));
+    const entry = await registry.create("demo", repoDir);
+
+    const updated = await registry.updateSettings({ model: "gpt-5.2-codex" });
+    expect(updated.model).toBe("gpt-5.2-codex");
+
+    const stored = await registry.getSettings();
+    expect(stored.model).toBe("gpt-5.2-codex");
+
+    const list = await registry.list();
+    expect(list).toHaveLength(1);
+    expect(list[0]?.repoId).toBe(entry.repoId);
+  });
 });

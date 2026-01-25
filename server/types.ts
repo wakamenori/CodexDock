@@ -7,6 +7,10 @@ export type RepoEntry = {
   lastOpenedThreadId?: string;
 };
 
+export type AppSettings = {
+  model?: string | null;
+};
+
 export type JsonValue =
   | string
   | number

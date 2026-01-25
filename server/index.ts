@@ -37,6 +37,7 @@ const main = async () => {
     turnState,
     refresher,
     staticRoot: config.staticRoot,
+    defaultModel: config.defaultModel,
   });
 
   const server = serve({

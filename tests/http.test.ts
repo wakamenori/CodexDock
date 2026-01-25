@@ -51,6 +51,7 @@ describe("HTTP API", () => {
       turnState,
       refresher,
       pathPicker: async () => pickResult,
+      defaultModel: "gpt-5.2-codex",
     });
   });
 
@@ -141,5 +142,35 @@ describe("HTTP API", () => {
     const res = await app.request("/api/repos/pick-path", { method: "POST" });
 
     expect(res.status).toBe(204);
+  });
+
+  it("gets and updates model settings", async () => {
+    const initialRes = await app.request("/api/settings/model");
+    expect(initialRes.status).toBe(200);
+    const initialBody = (await initialRes.json()) as {
+      storedModel: string | null;
+      defaultModel: string | null;
+    };
+    expect(initialBody.storedModel).toBeNull();
+    expect(initialBody.defaultModel).toBe("gpt-5.2-codex");
+
+    const updateRes = await app.request("/api/settings/model", {
+      method: "PUT",
+      headers: jsonHeaders,
+      body: JSON.stringify({ model: "gpt-5.2-codex" }),
+    });
+    expect(updateRes.status).toBe(200);
+    const updateBody = (await updateRes.json()) as {
+      storedModel: string | null;
+    };
+    expect(updateBody.storedModel).toBe("gpt-5.2-codex");
+
+    const followRes = await app.request("/api/settings/model");
+    const followBody = (await followRes.json()) as {
+      storedModel: string | null;
+      defaultModel: string | null;
+    };
+    expect(followBody.storedModel).toBe("gpt-5.2-codex");
+    expect(followBody.defaultModel).toBe("gpt-5.2-codex");
   });
 });

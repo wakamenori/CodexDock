@@ -11,13 +11,18 @@ import {
 import path from "node:path";
 import type { Logger } from "pino";
 import { badRequest, conflict, notFound, unprocessable } from "./errors.js";
-import type { RepoEntry } from "./types.js";
+import type { AppSettings, RepoEntry } from "./types.js";
 import { Mutex, hashPath } from "./utils.js";
+
+type RegistryState = {
+  repos: RepoEntry[];
+  settings: AppSettings;
+};
 
 export class RepoRegistry {
   private filePath: string;
   private mutex = new Mutex();
-  private cache: RepoEntry[] | null = null;
+  private cache: RegistryState | null = null;
   private logger: Logger;
 
   constructor(
@@ -32,21 +37,22 @@ export class RepoRegistry {
 
   async list(): Promise<RepoEntry[]> {
     return this.mutex.runExclusive(async () => {
-      const repos = await this.load();
-      return [...repos];
+      const state = await this.load();
+      return [...state.repos];
     });
   }
 
   async get(repoId: string): Promise<RepoEntry | undefined> {
     return this.mutex.runExclusive(async () => {
-      const repos = await this.load();
-      return repos.find((repo) => repo.repoId === repoId);
+      const state = await this.load();
+      return state.repos.find((repo) => repo.repoId === repoId);
     });
   }
 
   async create(name: string, inputPath: string): Promise<RepoEntry> {
     return this.mutex.runExclusive(async () => {
-      const repos = await this.load();
+      const state = await this.load();
+      const repos = state.repos;
       const normalizedPath = await this.normalizePath(inputPath);
       if (repos.some((repo) => repo.path === normalizedPath)) {
         throw conflict("Repository path already registered", { field: "path" });
@@ -60,7 +66,7 @@ export class RepoRegistry {
         name,
         path: normalizedPath,
       };
-      const next = [...repos, entry];
+      const next = { ...state, repos: [...repos, entry] };
       await this.save(next);
       this.logger.info({ component: "repo_registry", repoId }, "repo_created");
       return entry;
@@ -69,7 +75,8 @@ export class RepoRegistry {
 
   async update(repoId: string, patch: Partial<RepoEntry>): Promise<RepoEntry> {
     return this.mutex.runExclusive(async () => {
-      const repos = await this.load();
+      const state = await this.load();
+      const repos = state.repos;
       const index = repos.findIndex((repo) => repo.repoId === repoId);
       if (index < 0) {
         throw notFound("Repository not found", { repoId });
@@ -85,9 +92,9 @@ export class RepoRegistry {
         lastOpenedThreadId:
           patch.lastOpenedThreadId ?? repos[index].lastOpenedThreadId,
       };
-      const next = [...repos];
-      next[index] = updated;
-      await this.save(next);
+      const nextRepos = [...repos];
+      nextRepos[index] = updated;
+      await this.save({ ...state, repos: nextRepos });
       this.logger.info({ component: "repo_registry", repoId }, "repo_updated");
       return updated;
     });
@@ -95,31 +102,65 @@ export class RepoRegistry {
 
   async remove(repoId: string): Promise<void> {
     return this.mutex.runExclusive(async () => {
-      const repos = await this.load();
+      const state = await this.load();
+      const repos = state.repos;
       const index = repos.findIndex((repo) => repo.repoId === repoId);
       if (index < 0) {
         throw notFound("Repository not found", { repoId });
       }
       const next = repos.filter((repo) => repo.repoId !== repoId);
-      await this.save(next);
+      await this.save({ ...state, repos: next });
       this.logger.info({ component: "repo_registry", repoId }, "repo_removed");
     });
   }
 
-  private async load(): Promise<RepoEntry[]> {
+  async getSettings(): Promise<AppSettings> {
+    return this.mutex.runExclusive(async () => {
+      const state = await this.load();
+      return { ...state.settings };
+    });
+  }
+
+  async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+    return this.mutex.runExclusive(async () => {
+      const state = await this.load();
+      const nextSettings: AppSettings = { ...state.settings };
+      if (Object.prototype.hasOwnProperty.call(patch, "model")) {
+        nextSettings.model = patch.model ?? null;
+      }
+      const next = { ...state, settings: nextSettings };
+      await this.save(next);
+      this.logger.info(
+        {
+          component: "repo_registry",
+          model: nextSettings.model ?? null,
+        },
+        "settings_updated",
+      );
+      return { ...nextSettings };
+    });
+  }
+
+  private async load(): Promise<RegistryState> {
     if (this.cache) {
       return this.cache;
     }
     await mkdir(path.dirname(this.filePath), { recursive: true });
     try {
       const raw = await readFile(this.filePath, "utf8");
-      const parsed = JSON.parse(raw) as { repos?: RepoEntry[] };
-      this.cache = parsed.repos ?? [];
+      const parsed = JSON.parse(raw) as {
+        repos?: RepoEntry[];
+        settings?: AppSettings;
+      };
+      this.cache = {
+        repos: parsed.repos ?? [],
+        settings: parsed.settings ?? {},
+      };
     } catch (error) {
       const err = error as NodeJS.ErrnoException;
       if (err?.code === "ENOENT") {
-        this.cache = [];
-        await this.save([]);
+        this.cache = { repos: [], settings: {} };
+        await this.save(this.cache);
       } else {
         throw error;
       }
@@ -127,13 +168,17 @@ export class RepoRegistry {
     return this.cache;
   }
 
-  private async save(repos: RepoEntry[]): Promise<void> {
+  private async save(state: RegistryState): Promise<void> {
     await mkdir(path.dirname(this.filePath), { recursive: true });
     const tempPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
-    const payload = JSON.stringify({ repos }, null, 2);
+    const payload = JSON.stringify(
+      { repos: state.repos, settings: state.settings },
+      null,
+      2,
+    );
     await writeFile(tempPath, payload, "utf8");
     await rename(tempPath, this.filePath);
-    this.cache = repos;
+    this.cache = { repos: state.repos, settings: state.settings };
   }
 
   private async normalizePath(inputPath: string): Promise<string> {

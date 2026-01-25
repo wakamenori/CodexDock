@@ -14,6 +14,7 @@ export type ResolvedConfig = {
   host: string;
   dataDir: string;
   repoFileName: string;
+  defaultModel: string | null;
   staticRoot?: string;
   clientInfo: {
     name: string;
@@ -71,7 +72,18 @@ export const resolveRepoFileName = ({
 }): string => {
   const environment = env.NODE_ENV ?? "production";
   const isDev = environment === "development" || environment === "test";
-  return isDev ? "dev.repos.json" : "prd.repos.json";
+  return isDev ? "dev.json" : "prd.json";
+};
+
+export const resolveDefaultModel = ({
+  env,
+}: {
+  env: NodeJS.ProcessEnv;
+}): string | null => {
+  const raw = env.CODEXDOCK_DEFAULT_MODEL;
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
 };
 
 const detectWsl = async (): Promise<boolean> => {
@@ -142,6 +154,7 @@ export const resolveConfig = async ({
   });
   const dataDir = resolveDataDir({ env, cwd });
   const repoFileName = resolveRepoFileName({ env });
+  const defaultModel = resolveDefaultModel({ env });
   const staticRoot =
     env.NODE_ENV === "production" ? resolve(cwd, "dist") : undefined;
   return {
@@ -149,6 +162,7 @@ export const resolveConfig = async ({
     port,
     dataDir,
     repoFileName,
+    defaultModel,
     staticRoot,
     clientInfo: {
       name: "CodexDock",

@@ -31,6 +31,8 @@ vi.mock("../../../api", () => {
       stopSession: vi.fn(),
       listThreads: vi.fn(),
       listModels: vi.fn(),
+      getModelSettings: vi.fn(),
+      updateModelSetting: vi.fn(),
       createThread: vi.fn(),
       resumeThread: vi.fn(),
       startTurn: vi.fn(),
@@ -85,7 +87,13 @@ class FakeWebSocket {
 
 const mockedApi = vi.mocked(api);
 
-const setupHook = async (threadsOverride?: ThreadSummary[]) => {
+const setupHook = async (
+  threadsOverride?: ThreadSummary[],
+  options?: {
+    models?: string[];
+    settings?: { storedModel: string | null; defaultModel: string | null };
+  },
+) => {
   const repo: Repo = {
     repoId: "repo-1",
     name: "repo",
@@ -96,10 +104,18 @@ const setupHook = async (threadsOverride?: ThreadSummary[]) => {
     { threadId: "thread-1", cwd: "/repo" },
   ];
 
+  const models = options?.models ?? ["gpt-5.2-codex"];
+  const settings = options?.settings ?? {
+    storedModel: "gpt-5.2-codex",
+    defaultModel: "gpt-5.2-codex",
+  };
+
   mockedApi.listRepos.mockResolvedValue([repo]);
   mockedApi.startSession.mockResolvedValue(undefined);
   mockedApi.listThreads.mockResolvedValue(threads);
-  mockedApi.listModels.mockResolvedValue(["gpt-5.2-codex"]);
+  mockedApi.listModels.mockResolvedValue(models);
+  mockedApi.getModelSettings.mockResolvedValue(settings);
+  mockedApi.updateModelSetting.mockResolvedValue(settings.storedModel);
   mockedApi.resumeThread.mockResolvedValue({});
   mockedApi.updateRepo.mockResolvedValue(repo);
 
@@ -148,6 +164,10 @@ describe("useConversationState websocket subscriptions", () => {
       return repoId === "repo-1" ? threads1 : threads2;
     });
     mockedApi.listModels.mockResolvedValue(["gpt-5.2-codex"]);
+    mockedApi.getModelSettings.mockResolvedValue({
+      storedModel: "gpt-5.2-codex",
+      defaultModel: "gpt-5.2-codex",
+    });
     mockedApi.resumeThread.mockResolvedValue({});
     mockedApi.updateRepo.mockResolvedValue(repos[0]);
 
@@ -183,6 +203,66 @@ describe("useConversationState websocket subscriptions", () => {
   });
 });
 
+describe("useConversationState model selection", () => {
+  beforeEach(() => {
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+    FakeWebSocket.instances = [];
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses stored model when available", async () => {
+    const hook = await setupHook(undefined, {
+      models: ["gpt-5.2-codex"],
+      settings: { storedModel: "gpt-5.2-codex", defaultModel: null },
+    });
+
+    await waitFor(() => {
+      expect(hook.result.current.selectedModel).toBe("gpt-5.2-codex");
+    });
+  });
+
+  it("falls back to default model when stored model is unavailable", async () => {
+    const hook = await setupHook(undefined, {
+      models: ["gpt-5.1-codex"],
+      settings: {
+        storedModel: "gpt-5.2-codex",
+        defaultModel: "gpt-5.1-codex",
+      },
+    });
+
+    await waitFor(() => {
+      expect(hook.result.current.selectedModel).toBe("gpt-5.1-codex");
+    });
+  });
+
+  it("falls back to the first model when stored and default are unavailable", async () => {
+    const hook = await setupHook(undefined, {
+      models: ["gpt-4o-mini", "gpt-4o"],
+      settings: { storedModel: "gpt-5.2-codex", defaultModel: "gpt-5.1" },
+    });
+
+    await waitFor(() => {
+      expect(hook.result.current.selectedModel).toBe("gpt-4o-mini");
+    });
+  });
+
+  it("persists model changes immediately", async () => {
+    const hook = await setupHook();
+    mockedApi.updateModelSetting.mockResolvedValue("gpt-4o-mini");
+
+    await act(async () => {
+      hook.result.current.handleModelChange("gpt-4o-mini");
+    });
+
+    await waitFor(() => {
+      expect(mockedApi.updateModelSetting).toHaveBeenCalledWith("gpt-4o-mini");
+    });
+  });
+});
+
 describe("useConversationState handleSend", () => {
   beforeEach(() => {
     globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
@@ -201,10 +281,6 @@ describe("useConversationState handleSend", () => {
 
     await waitFor(() => {
       expect(hook.result.current.inputText).toBe(" hello ");
-    });
-
-    await act(async () => {
-      hook.result.current.handleModelChange("gpt-5.2-codex");
     });
 
     let resolveStart!: (value: { turnId: string; status: string }) => void;
@@ -238,10 +314,6 @@ describe("useConversationState handleSend", () => {
       hook.result.current.setInputText("Hello world");
     });
 
-    await act(async () => {
-      hook.result.current.handleModelChange("gpt-5.2-codex");
-    });
-
     mockedApi.startTurn.mockResolvedValue({
       turnId: "turn-1",
       status: "running",
@@ -264,10 +336,6 @@ describe("useConversationState handleSend", () => {
       hook.result.current.setInputText(" hello ");
     });
 
-    await act(async () => {
-      hook.result.current.handleModelChange("gpt-5.2-codex");
-    });
-
     mockedApi.startTurn.mockRejectedValue(new Error("boom"));
 
     await act(async () => {
@@ -285,10 +353,6 @@ describe("useConversationState handleSend", () => {
       hook.result.current.setInputText("Hello world");
     });
 
-    await act(async () => {
-      hook.result.current.handleModelChange("gpt-5.2-codex");
-    });
-
     mockedApi.startTurn.mockRejectedValue(new Error("boom"));
 
     await act(async () => {
@@ -302,8 +366,8 @@ describe("useConversationState handleSend", () => {
     expect(preview).toBe("New thread");
   });
 
-  it("blocks send and shows toast when model is unset", async () => {
-    const hook = await setupHook();
+  it("blocks send and shows toast when no models are available", async () => {
+    const hook = await setupHook(undefined, { models: [] });
     await act(async () => {
       hook.result.current.setInputText(" hello ");
     });

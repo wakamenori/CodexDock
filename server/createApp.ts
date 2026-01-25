@@ -143,12 +143,14 @@ type CreateAppOptions = {
   refresher: ThreadListRefresher;
   pathPicker?: RepoPathPicker;
   staticRoot?: string;
+  defaultModel?: string | null;
 };
 
 export const createApp = (options: CreateAppOptions) => {
   const { registry, manager, logger, turnState, refresher } = options;
   const pathPicker = options.pathPicker ?? pickRepoPath;
   const staticRoot = options.staticRoot;
+  const defaultModel = options.defaultModel ?? null;
   const app = new Hono();
 
   app.use("*", async (c, next) => {
@@ -182,6 +184,33 @@ export const createApp = (options: CreateAppOptions) => {
   app.get("/api/repos", async (c) => {
     const repos = await registry.list();
     return c.json({ repos });
+  });
+
+  app.get("/api/settings/model", async (c) => {
+    const settings = await registry.getSettings();
+    return c.json({
+      storedModel: settings.model ?? null,
+      defaultModel,
+    });
+  });
+
+  app.put("/api/settings/model", async (c) => {
+    const body = await parseJson(c);
+    if (!isRecord(body)) {
+      throw badRequest("model is required", { field: "model" });
+    }
+    const hasModel = Object.prototype.hasOwnProperty.call(body, "model");
+    if (!hasModel) {
+      throw badRequest("model is required", { field: "model" });
+    }
+    const rawModel = body.model;
+    if (rawModel !== null && typeof rawModel !== "string") {
+      throw badRequest("model must be a string or null", { field: "model" });
+    }
+    const settings = await registry.updateSettings({
+      model: rawModel ?? null,
+    });
+    return c.json({ storedModel: settings.model ?? null });
   });
 
   app.post("/api/repos/pick-path", async (c) => {
