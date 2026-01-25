@@ -1,3 +1,4 @@
+import { Toaster } from "sonner";
 import { HeaderBar } from "./components/HeaderBar";
 import { MainPanel } from "./components/MainPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -11,7 +12,6 @@ export default function App() {
     selectedThreadId,
     wsConnected,
     running,
-    errorMessage,
     messages,
     diffs,
     fileChanges,
@@ -28,6 +28,7 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col gap-4 p-4 overflow-hidden">
+      <Toaster richColors theme="dark" position="top-right" />
       <HeaderBar wsConnected={wsConnected} />
       <div className="flex flex-1 min-h-0 gap-4">
         <Sidebar
@@ -43,7 +44,6 @@ export default function App() {
         <MainPanel
           selectedRepoName={selectedRepo?.name ?? null}
           running={running}
-          errorMessage={errorMessage}
           messages={messages}
           diffs={diffs}
           fileChanges={fileChanges}

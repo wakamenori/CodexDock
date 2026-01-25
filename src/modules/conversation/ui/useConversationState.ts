@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { ApiError, api } from "../../../api";
 import type {
@@ -33,7 +34,6 @@ export type UseAppStateResult = {
   selectedThreadId: string | null;
   wsConnected: boolean;
   running: boolean;
-  errorMessage: string | null;
   messages: ChatMessage[];
   diffs: DiffEntry[];
   fileChanges: Record<string, FileChangeEntry>;
@@ -79,8 +79,6 @@ export const useConversationState = (): UseAppStateResult => {
   >({});
   const [inputText, setInputText] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedRepoRef = useRef<string | null>(null);
   const selectedThreadIdRef = useRef<string | null>(null);
@@ -217,7 +215,7 @@ export const useConversationState = (): UseAppStateResult => {
           setSelectedRepoId((current) => current ?? data[0].repoId);
         }
       } catch (error) {
-        setErrorMessage(
+        toast.error(
           error instanceof Error ? error.message : "Failed to load repos",
         );
       }
@@ -255,7 +253,7 @@ export const useConversationState = (): UseAppStateResult => {
     (message: WsInboundMessage) => {
       switch (message.type) {
         case "subscribe_error":
-          setErrorMessage(message.payload.error.message);
+          toast.error(message.payload.error.message);
           break;
         case "session_status":
           setSessionStatusByRepo((prev) => ({
@@ -368,7 +366,7 @@ export const useConversationState = (): UseAppStateResult => {
           });
         }
       } catch (error) {
-        setErrorMessage(
+        toast.error(
           error instanceof Error ? error.message : "Failed to start session",
         );
       }
@@ -434,7 +432,7 @@ export const useConversationState = (): UseAppStateResult => {
       updateThreadMessages(selectedThreadId, (list) =>
         list.filter((item) => item.id !== pendingId),
       );
-      setErrorMessage(error instanceof Error ? error.message : "Turn failed");
+      toast.error(error instanceof Error ? error.message : "Turn failed");
     }
   }, [inputText, selectedRepoId, selectedThreadId, updateThreadMessages]);
 
@@ -448,7 +446,7 @@ export const useConversationState = (): UseAppStateResult => {
       const list = await api.listThreads(selectedRepoId);
       setThreadsByRepo((prev) => ({ ...prev, [selectedRepoId]: list }));
     } catch (error) {
-      setErrorMessage(
+      toast.error(
         error instanceof Error ? error.message : "Failed to create thread",
       );
     }
@@ -470,7 +468,7 @@ export const useConversationState = (): UseAppStateResult => {
         setThreadMessages(threadId, resumeMessages);
         await api.updateRepo(repoId, { lastOpenedThreadId: threadId });
       } catch (error) {
-        setErrorMessage(
+        toast.error(
           error instanceof Error ? error.message : "Failed to resume thread",
         );
       }
@@ -484,14 +482,14 @@ export const useConversationState = (): UseAppStateResult => {
       if (!path) return;
       const name = extractRepoName(path);
       if (!name) {
-        setErrorMessage("Failed to derive repository name");
+        toast.error("Failed to derive repository name");
         return;
       }
       const repo = await api.createRepo(name, path);
       setRepos((prev) => [...prev, repo]);
       setSelectedRepoId(repo.repoId);
     } catch (error) {
-      setErrorMessage(
+      toast.error(
         error instanceof ApiError ? error.message : "Failed to add repo",
       );
     }
@@ -510,7 +508,6 @@ export const useConversationState = (): UseAppStateResult => {
     selectedThreadId,
     wsConnected,
     running,
-    errorMessage,
     messages,
     diffs,
     fileChanges,

@@ -11,7 +11,6 @@ import { Composer } from "./Composer";
 type MainPanelProps = {
   selectedRepoName: string | null;
   running: boolean;
-  errorMessage: string | null;
   messages: ChatMessage[];
   diffs: DiffEntry[];
   fileChanges: Record<string, FileChangeEntry>;
@@ -32,7 +31,6 @@ type MainPanelProps = {
 export function MainPanel({
   selectedRepoName,
   running,
-  errorMessage,
   messages,
   diffs,
   fileChanges,
@@ -67,7 +65,6 @@ export function MainPanel({
       </div>
 
       <ChatHistory
-        errorMessage={errorMessage}
         messages={messages}
         diffs={diffs}
         selectedThreadId={selectedThreadId}

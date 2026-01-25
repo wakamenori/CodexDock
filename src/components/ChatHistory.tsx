@@ -7,14 +7,12 @@ import { DiffViewer } from "./DiffViewer";
 import { ReasoningItem } from "./ReasoningItem";
 
 type ChatHistoryProps = {
-  errorMessage: string | null;
   messages: ChatMessage[];
   diffs: DiffEntry[];
   selectedThreadId: string | null;
 };
 
 export function ChatHistory({
-  errorMessage,
   messages,
   diffs,
   selectedThreadId,
@@ -30,12 +28,6 @@ export function ChatHistory({
       ref={historyRef}
       className="flex-1 overflow-y-auto px-6 py-5 space-y-4 scrollbar-thin"
     >
-      {errorMessage && (
-        <div className="rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {errorMessage}
-        </div>
-      )}
-
       {messages.map((message) => {
         if (message.role === "reasoning") {
           return <ReasoningItem key={message.id} message={message} />;
