@@ -136,7 +136,7 @@ export function Sidebar({
                 <div className="mt-2 flex flex-col gap-1">
                   {visibleThreads.map((thread) => {
                     const preview = thread.preview?.trim();
-                    const label = preview || thread.threadId;
+                    const label = preview || "New thread";
                     const timeLabel = getThreadTime(
                       thread.createdAt ?? thread.updatedAt,
                     );
