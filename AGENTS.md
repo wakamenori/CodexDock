@@ -10,6 +10,7 @@
 - `server/`: バックエンド（Hono + app-server ブリッジ）
 - `tests/`: テスト（Vitest）
 - `Docs/`: 仕様/ドキュメント
+  - `Docs/codex-app-server-official-doc.md`: `codex app-server` の公式ドキュメント
 - `data/`: 実行時データ（`data/repos.json` など）
 - Avoid: `dist/`, `node_modules/`, `data/`
 
@@ -26,7 +27,7 @@
 ## Commands to validate changes (run these after edits)
 - `pnpm lint`
 - `pnpm typecheck`
-- `pnpm test --run`
+- `pnpm test`
 
 ## Coding conventions
 - Formatting/lint: Biome（2スペース、import整理、lintは推奨ルール）
