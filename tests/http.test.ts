@@ -19,9 +19,11 @@ describe("HTTP API", () => {
   let registry: RepoRegistry;
   let manager: AppServerManager;
   let sessions = new Map<string, FakeAppServerSession>();
+  let pickResult: string | null = null;
 
   beforeEach(async () => {
     sessions = new Map();
+    pickResult = null;
     const tmpDir = await mkdtemp(path.join(os.tmpdir(), "codexdock-"));
     registry = new RepoRegistry(tmpDir, logger);
     const sessionFactory = (repo: { repoId: string }): AppServerSessionLike => {
@@ -42,7 +44,14 @@ describe("HTTP API", () => {
     };
     const refresher = new ThreadListRefresher(manager, gateway, logger);
     const turnState = new TurnStateStore();
-    app = createApp({ registry, manager, logger, turnState, refresher });
+    app = createApp({
+      registry,
+      manager,
+      logger,
+      turnState,
+      refresher,
+      pathPicker: async () => pickResult,
+    });
   });
 
   it("creates repo and lists threads", async () => {
@@ -114,5 +123,23 @@ describe("HTTP API", () => {
       },
     );
     expect(cancelRes.status).toBe(200);
+  });
+
+  it("returns selected repo path", async () => {
+    pickResult = "/tmp/repo-path";
+
+    const res = await app.request("/api/repos/pick-path", { method: "POST" });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { path: string };
+    expect(body.path).toBe("/tmp/repo-path");
+  });
+
+  it("returns 204 when repo path selection is cancelled", async () => {
+    pickResult = null;
+
+    const res = await app.request("/api/repos/pick-path", { method: "POST" });
+
+    expect(res.status).toBe(204);
   });
 });

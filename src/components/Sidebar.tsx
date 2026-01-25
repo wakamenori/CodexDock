@@ -12,13 +12,9 @@ type RepoGroup = {
 type SidebarProps = {
   repoGroups: RepoGroup[];
   selectedRepoId: string | null;
-  newRepoName: string;
-  newRepoPath: string;
   running: boolean;
   selectedThreadId: string | null;
   onSelectRepo: (repoId: string | null) => void;
-  onNewRepoNameChange: (value: string) => void;
-  onNewRepoPathChange: (value: string) => void;
   onAddRepo: () => void;
   onCreateThread: () => void;
   onSelectThread: (repoId: string, threadId: string) => void;
@@ -27,13 +23,9 @@ type SidebarProps = {
 export function Sidebar({
   repoGroups,
   selectedRepoId,
-  newRepoName,
-  newRepoPath,
   running,
   selectedThreadId,
   onSelectRepo,
-  onNewRepoNameChange,
-  onNewRepoPathChange,
   onAddRepo,
   onCreateThread,
   onSelectThread,
@@ -41,7 +33,6 @@ export function Sidebar({
   const [expandedRepos, setExpandedRepos] = useState<Record<string, boolean>>(
     {},
   );
-  const [showAddRepo, setShowAddRepo] = useState(false);
 
   const statusDot = (status: SessionStatus) => {
     switch (status) {
@@ -80,13 +71,6 @@ export function Sidebar({
         <p className="text-xs uppercase tracking-[0.3em] text-ink-300">
           Repositories
         </p>
-        <button
-          className="rounded-full border border-ink-600 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-ink-300 transition hover:border-ink-400 hover:text-ink-200"
-          onClick={() => setShowAddRepo((prev) => !prev)}
-          type="button"
-        >
-          {showAddRepo ? "Hide" : "Add"}
-        </button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto pr-1 scrollbar-thin">
@@ -189,32 +173,13 @@ export function Sidebar({
         </div>
       </div>
 
-      {showAddRepo && (
-        <div className="rounded-xl border border-ink-700/70 bg-ink-900/60 p-3">
-          <p className="text-xs uppercase tracking-[0.2em] text-ink-300">
-            Add Repo
-          </p>
-          <input
-            className="mt-2 w-full rounded-md border border-ink-600 bg-ink-900/70 px-3 py-2 text-sm"
-            placeholder="Display name"
-            value={newRepoName}
-            onChange={(event) => onNewRepoNameChange(event.target.value)}
-          />
-          <input
-            className="mt-2 w-full rounded-md border border-ink-600 bg-ink-900/70 px-3 py-2 text-sm font-mono"
-            placeholder="/abs/path/to/repo"
-            value={newRepoPath}
-            onChange={(event) => onNewRepoPathChange(event.target.value)}
-          />
-          <button
-            className="mt-3 w-full rounded-md bg-neon-500/90 px-3 py-2 text-sm font-semibold text-ink-900 transition hover:bg-neon-500"
-            onClick={onAddRepo}
-            type="button"
-          >
-            Register
-          </button>
-        </div>
-      )}
+      <button
+        className="w-full rounded-md border border-ink-600 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-ink-300 transition hover:border-ink-400 hover:text-ink-200"
+        onClick={onAddRepo}
+        type="button"
+      >
+        Add Repo
+      </button>
     </aside>
   );
 }

@@ -44,7 +44,14 @@ const createContext = async (): Promise<TestContext> => {
   };
   const refresher = new ThreadListRefresher(manager, gateway, logger);
   const turnState = new TurnStateStore();
-  const app = createApp({ registry, manager, logger, turnState, refresher });
+  const app = createApp({
+    registry,
+    manager,
+    logger,
+    turnState,
+    refresher,
+    pathPicker: async () => null,
+  });
   return { app, registry, manager, sessions, turnState };
 };
 

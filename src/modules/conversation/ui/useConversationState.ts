@@ -19,6 +19,7 @@ import {
   normalizeRootPath,
 } from "../domain/parsers";
 import { createWsEventHandlers } from "../infra/wsHandlers";
+import { extractRepoName } from "../../../shared/paths";
 
 export type UseAppStateResult = {
   repos: Repo[];
@@ -29,8 +30,6 @@ export type UseAppStateResult = {
   }[];
   selectedRepoId: string | null;
   selectedRepo: Repo | null;
-  newRepoName: string;
-  newRepoPath: string;
   selectedThreadId: string | null;
   wsConnected: boolean;
   running: boolean;
@@ -41,8 +40,6 @@ export type UseAppStateResult = {
   approvals: ApprovalRequest[];
   inputText: string;
   selectRepo: (repoId: string | null) => void;
-  setNewRepoName: (value: string) => void;
-  setNewRepoPath: (value: string) => void;
   setInputText: (value: string) => void;
   handleAddRepo: () => Promise<void>;
   handleCreateThread: () => Promise<void>;
@@ -83,8 +80,6 @@ export const useConversationState = (): UseAppStateResult => {
   const [inputText, setInputText] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [newRepoName, setNewRepoName] = useState("");
-  const [newRepoPath, setNewRepoPath] = useState("");
 
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedRepoRef = useRef<string | null>(null);
@@ -484,19 +479,23 @@ export const useConversationState = (): UseAppStateResult => {
   );
 
   const handleAddRepo = useCallback(async () => {
-    if (!newRepoName.trim() || !newRepoPath.trim()) return;
     try {
-      const repo = await api.createRepo(newRepoName.trim(), newRepoPath.trim());
+      const path = await api.pickRepoPath();
+      if (!path) return;
+      const name = extractRepoName(path);
+      if (!name) {
+        setErrorMessage("Failed to derive repository name");
+        return;
+      }
+      const repo = await api.createRepo(name, path);
       setRepos((prev) => [...prev, repo]);
       setSelectedRepoId(repo.repoId);
-      setNewRepoName("");
-      setNewRepoPath("");
     } catch (error) {
       setErrorMessage(
         error instanceof ApiError ? error.message : "Failed to add repo",
       );
     }
-  }, [newRepoName, newRepoPath]);
+  }, []);
 
   const selectRepo = useCallback((repoId: string | null) => {
     pendingThreadSelectionRef.current = null;
@@ -508,8 +507,6 @@ export const useConversationState = (): UseAppStateResult => {
     repoGroups,
     selectedRepoId,
     selectedRepo,
-    newRepoName,
-    newRepoPath,
     selectedThreadId,
     wsConnected,
     running,
@@ -520,8 +517,6 @@ export const useConversationState = (): UseAppStateResult => {
     approvals,
     inputText,
     selectRepo,
-    setNewRepoName,
-    setNewRepoPath,
     setInputText,
     handleAddRepo,
     handleCreateThread,

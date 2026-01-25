@@ -82,7 +82,14 @@ describe("WebSocket", () => {
       logger,
     });
 
-    const app = createApp({ registry, manager, logger, turnState, refresher });
+    const app = createApp({
+      registry,
+      manager,
+      logger,
+      turnState,
+      refresher,
+      pathPicker: async () => null,
+    });
     const server = createServer(getRequestListener(app.fetch));
     gateway.attach(server);
 

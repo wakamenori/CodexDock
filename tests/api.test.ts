@@ -69,4 +69,26 @@ describe("api client", () => {
       status: 400,
     });
   });
+
+  it("returns picked path from pickRepoPath", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ path: "/tmp/repo" }), { status: 200 }),
+    );
+
+    const path = await api.pickRepoPath();
+
+    expect(path).toBe("/tmp/repo");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/repos/pick-path",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("returns null from pickRepoPath on 204", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+    const path = await api.pickRepoPath();
+
+    expect(path).toBeNull();
+  });
 });

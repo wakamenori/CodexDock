@@ -8,8 +8,6 @@ export default function App() {
     repoGroups,
     selectedRepoId,
     selectedRepo,
-    newRepoName,
-    newRepoPath,
     selectedThreadId,
     wsConnected,
     running,
@@ -20,8 +18,6 @@ export default function App() {
     approvals,
     inputText,
     selectRepo,
-    setNewRepoName,
-    setNewRepoPath,
     setInputText,
     handleAddRepo,
     handleCreateThread,
@@ -37,13 +33,9 @@ export default function App() {
         <Sidebar
           repoGroups={repoGroups}
           selectedRepoId={selectedRepoId}
-          newRepoName={newRepoName}
-          newRepoPath={newRepoPath}
           running={running}
           selectedThreadId={selectedThreadId}
           onSelectRepo={selectRepo}
-          onNewRepoNameChange={(value) => setNewRepoName(value)}
-          onNewRepoPathChange={(value) => setNewRepoPath(value)}
           onAddRepo={handleAddRepo}
           onCreateThread={handleCreateThread}
           onSelectThread={handleSelectThread}

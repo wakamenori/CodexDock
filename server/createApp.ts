@@ -10,6 +10,8 @@ import {
   isRecord,
 } from "./guards.js";
 import { httpLogger } from "./logger.js";
+import { pickRepoPath } from "./pathPicker.js";
+import type { RepoPathPicker } from "./pathPicker.js";
 import type { RepoRegistry } from "./repoRegistry.js";
 import type { ThreadListRefresher } from "./threadListRefresher.js";
 import type { TurnStateStore } from "./turnState.js";
@@ -88,14 +90,18 @@ const appServerError = (error: unknown) =>
     },
   });
 
-export const createApp = (options: {
+type CreateAppOptions = {
   registry: RepoRegistry;
   manager: AppServerManager;
   logger: Logger;
   turnState: TurnStateStore;
   refresher: ThreadListRefresher;
-}) => {
+  pathPicker?: RepoPathPicker;
+};
+
+export const createApp = (options: CreateAppOptions) => {
   const { registry, manager, logger, turnState, refresher } = options;
+  const pathPicker = options.pathPicker ?? pickRepoPath;
   const app = new Hono();
 
   app.use("*", async (c, next) => {
@@ -129,6 +135,23 @@ export const createApp = (options: {
   app.get("/api/repos", async (c) => {
     const repos = await registry.list();
     return c.json({ repos });
+  });
+
+  app.post("/api/repos/pick-path", async (c) => {
+    try {
+      const path = await pathPicker();
+      if (!path) return c.body(null, 204);
+      return c.json({ path });
+    } catch (error) {
+      throw new ApiError(
+        500,
+        "picker_failed",
+        "Failed to select repository path",
+        {
+          reason: error instanceof Error ? error.message : "unknown",
+        },
+      );
+    }
   });
 
   app.post("/api/repos", async (c) => {

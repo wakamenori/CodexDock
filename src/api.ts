@@ -42,6 +42,13 @@ export const api = {
     });
     return data.repo;
   },
+  async pickRepoPath(): Promise<string | null> {
+    const data = await requestJson<{ path: string } | undefined>(
+      "/api/repos/pick-path",
+      { method: "POST" },
+    );
+    return data?.path ?? null;
+  },
   async updateRepo(repoId: string, patch: Partial<Repo>): Promise<Repo> {
     const data = await requestJson<{ repo: Repo }>(`/api/repos/${repoId}`, {
       method: "PATCH",
