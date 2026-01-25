@@ -10,6 +10,7 @@ import { Composer } from "./Composer";
 
 type MainPanelProps = {
   selectedRepoName: string | null;
+  selectedRepoPath: string | null;
   running: boolean;
   messages: ChatMessage[];
   diffs: DiffEntry[];
@@ -18,7 +19,6 @@ type MainPanelProps = {
   inputText: string;
   selectedThreadId: string | null;
   selectedRepoId: string | null;
-  selectedRepoPath: string | null;
   onInputTextChange: (value: string) => void;
   onSend: () => void | Promise<void>;
   onApprove: (
@@ -30,6 +30,7 @@ type MainPanelProps = {
 
 export function MainPanel({
   selectedRepoName,
+  selectedRepoPath,
   running,
   messages,
   diffs,
@@ -38,7 +39,6 @@ export function MainPanel({
   inputText,
   selectedThreadId,
   selectedRepoId,
-  selectedRepoPath,
   onInputTextChange,
   onSend,
   onApprove,
@@ -68,6 +68,7 @@ export function MainPanel({
         messages={messages}
         diffs={diffs}
         selectedThreadId={selectedThreadId}
+        selectedRepoPath={selectedRepoPath}
       />
 
       <ApprovalPanel

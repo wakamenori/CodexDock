@@ -88,6 +88,15 @@ export type ChatMessage = {
   pending?: boolean;
   summary?: string;
   content?: string;
+  approval?: ApprovalMessage;
+};
+
+export type ApprovalMessage = {
+  kind: "command" | "fileChange";
+  outcome: "approved" | "rejected" | "approved_failed";
+  commandText?: string | null;
+  cwd?: string | null;
+  fileChanges?: FileChange[] | null;
 };
 
 export type DiffEntry = {

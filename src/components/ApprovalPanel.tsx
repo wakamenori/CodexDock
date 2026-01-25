@@ -1,5 +1,8 @@
-import { normalizeRootPath } from "../shared/paths";
-import { asRecord } from "../shared/records";
+import {
+  extractCommandTextFromParams,
+  extractCwdFromParams,
+} from "../modules/conversation/domain/approval";
+import { toRelativePath } from "../shared/paths";
 import type { ApprovalRequest, FileChangeEntry } from "../types";
 import { DiffViewer } from "./DiffViewer";
 
@@ -13,60 +16,6 @@ type ApprovalPanelProps = {
     request: ApprovalRequest,
     decision: "accept" | "decline",
   ) => void;
-};
-
-const toRelativePath = (path: string, repoRoot: string | null) => {
-  const normalized = path.replace(/\\/g, "/");
-  const root = normalizeRootPath(repoRoot ?? "");
-  if (root && normalized.startsWith(`${root}/`)) {
-    return normalized.slice(root.length + 1);
-  }
-  const withoutDrive = normalized.replace(/^[A-Za-z]:/, "");
-  return withoutDrive.replace(/^\/+/, "").replace(/^\.\/+/, "");
-};
-
-const formatCommand = (value: unknown): string | null => {
-  if (Array.isArray(value)) {
-    return value.map((entry) => String(entry)).join(" ");
-  }
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  return null;
-};
-
-const formatParsedCmd = (value: unknown): string | null => {
-  if (typeof value === "string") return value;
-  const record = asRecord(value);
-  const display = record?.display;
-  if (typeof display === "string") return display;
-  const tokens =
-    record?.tokens ??
-    record?.argv ??
-    record?.args ??
-    record?.segments ??
-    record?.parts;
-  if (Array.isArray(tokens)) {
-    return tokens.map((entry) => String(entry)).join(" ");
-  }
-  return null;
-};
-
-const extractCommandText = (params: unknown): string | null => {
-  if (typeof params === "string") return params;
-  const record = asRecord(params);
-  if (!record) return null;
-  return (
-    formatParsedCmd(record.parsedCmd) ?? formatCommand(record.command) ?? null
-  );
-};
-
-const extractCwd = (params: unknown): string | null => {
-  const record = asRecord(params);
-  if (!record) return null;
-  const cwd = record.cwd;
-  return typeof cwd === "string" ? cwd : null;
 };
 
 export function ApprovalPanel({
@@ -94,9 +43,11 @@ export function ApprovalPanel({
               ? fileChanges[approval.itemId]
               : undefined;
           const commandText = isCommandApproval
-            ? extractCommandText(approval.params)
+            ? extractCommandTextFromParams(approval.params)
             : null;
-          const cwd = isCommandApproval ? extractCwd(approval.params) : null;
+          const cwd = isCommandApproval
+            ? extractCwdFromParams(approval.params)
+            : null;
           const relativeCwd = cwd ? toRelativePath(cwd, selectedRepoPath) : "";
           return (
             <div

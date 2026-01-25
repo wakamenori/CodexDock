@@ -18,6 +18,12 @@ import type {
   WsOutboundMessage,
 } from "../../../types";
 import {
+  buildApprovalMessageText,
+  extractCommandTextFromParams,
+  extractCwdFromParams,
+  outcomeFromDecision,
+} from "../domain/approval";
+import {
   buildMessagesFromResume,
   createRequestId,
   deriveReviewingFromResume,
@@ -460,11 +466,59 @@ export const useConversationState = (): UseAppStateResult => {
       });
       const threadId = request.threadId ?? selectedThreadIdRef.current;
       if (!threadId) return;
+      const isCommandApproval =
+        request.method === "item/commandExecution/requestApproval";
+      const isFileChangeApproval =
+        request.method === "item/fileChange/requestApproval";
+      if (isCommandApproval || isFileChangeApproval) {
+        const changes =
+          isFileChangeApproval && request.itemId
+            ? (fileChangesByThread[threadId]?.[request.itemId]?.changes ?? [])
+            : [];
+        const commandText = isCommandApproval
+          ? extractCommandTextFromParams(request.params)
+          : null;
+        const cwd = isCommandApproval
+          ? extractCwdFromParams(request.params)
+          : null;
+        const outcome = outcomeFromDecision(decision);
+        const text = buildApprovalMessageText({
+          kind: isCommandApproval ? "command" : "fileChange",
+          outcome,
+          commandText,
+          cwd,
+          fileChanges: changes,
+          repoRoot: selectedRepo?.path ?? null,
+        });
+        updateThreadMessages(threadId, (list) => [
+          ...list,
+          {
+            id: createRequestId(),
+            itemId: request.itemId,
+            role: "agent",
+            text,
+            approval: {
+              kind: isCommandApproval ? "command" : "fileChange",
+              outcome,
+              commandText,
+              cwd,
+              fileChanges: changes,
+            },
+            createdAt: Date.now(),
+          },
+        ]);
+      }
       updateThreadApprovals(threadId, (list) =>
         list.filter((item) => item.rpcId !== request.rpcId),
       );
     },
-    [sendWs, updateThreadApprovals],
+    [
+      fileChangesByThread,
+      selectedRepo,
+      sendWs,
+      updateThreadApprovals,
+      updateThreadMessages,
+    ],
   );
 
   const handleSend = useCallback(async () => {

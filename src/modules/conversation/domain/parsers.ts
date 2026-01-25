@@ -158,7 +158,23 @@ const extractResumeItems = (result: unknown): Record<string, unknown>[] => {
     const turnItems = Array.isArray(turnRecord?.items) ? turnRecord?.items : [];
     for (const item of turnItems) {
       const itemRecord = asRecord(item);
-      if (itemRecord) {
+      if (!itemRecord) continue;
+      const nested = asRecord(itemRecord.item);
+      if (nested) {
+        const merged = { ...nested } as Record<string, unknown>;
+        if (typeof merged.status !== "string") {
+          merged.status =
+            typeof itemRecord.status === "string"
+              ? itemRecord.status
+              : merged.status;
+        }
+        if (merged.turnId === undefined && itemRecord.turnId !== undefined) {
+          merged.turnId = itemRecord.turnId;
+        }
+        items.push(merged);
+        continue;
+      }
+      if (typeof itemRecord.type === "string") {
         items.push(itemRecord);
       }
     }
