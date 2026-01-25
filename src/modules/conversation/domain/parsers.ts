@@ -8,6 +8,28 @@ const REASONING_CONTENT_LIMIT = 20000;
 const truncateText = (value: string, limit: number) =>
   value.length > limit ? value.slice(0, limit) : value;
 
+const extractTextParts = (
+  value: unknown,
+  separator = "\n\n",
+): string => {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  const parts: string[] = [];
+  for (const entry of value) {
+    if (typeof entry === "string") {
+      parts.push(entry);
+      continue;
+    }
+    const record = asRecord(entry);
+    if (!record) continue;
+    const text = record.text ?? record.content ?? record.summary;
+    if (typeof text === "string") {
+      parts.push(text);
+    }
+  }
+  return parts.join(separator);
+};
+
 export const normalizeReasoningSummary = (value: string) =>
   truncateText(value, REASONING_SUMMARY_LIMIT);
 
@@ -186,8 +208,8 @@ export const buildMessagesFromResume = (
       }
     }
     if (itemType === "reasoning") {
-      const summary = typeof item.summary === "string" ? item.summary : "";
-      const content = typeof item.content === "string" ? item.content : "";
+      const summary = extractTextParts(item.summary);
+      const content = extractTextParts(item.content);
       messages.push({
         id: itemId,
         itemId,

@@ -141,6 +141,30 @@ describe("buildMessagesFromResume", () => {
     expect(messages[2].summary).toBe("s");
     expect(messages[2].content).toBe("c");
   });
+
+  it("joins reasoning summary/content arrays", () => {
+    const payload = {
+      resume: {
+        thread: {
+          turns: [
+            {
+              items: [
+                {
+                  id: "r1",
+                  type: "reasoning",
+                  summary: ["a", "b"],
+                  content: ["c", "d"],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const messages = buildMessagesFromResume("t", payload);
+    expect(messages[0].summary).toBe("a\n\nb");
+    expect(messages[0].content).toBe("c\n\nd");
+  });
 });
 
 describe("normalizeRootPath", () => {
