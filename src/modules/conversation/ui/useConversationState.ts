@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ApiError, api } from "../../../api";
+import { extractRepoName } from "../../../shared/paths";
 import type {
   ApprovalRequest,
   ChatMessage,
@@ -20,7 +21,6 @@ import {
   normalizeRootPath,
 } from "../domain/parsers";
 import { createWsEventHandlers } from "../infra/wsHandlers";
-import { extractRepoName } from "../../../shared/paths";
 
 export type UseAppStateResult = {
   repos: Repo[];
@@ -342,14 +342,18 @@ export const useConversationState = (): UseAppStateResult => {
         const pendingSelection = pendingThreadSelectionRef.current;
         const pendingThreadId =
           pendingSelection && pendingSelection.repoId === selectedRepoId
-            ? list.find((thread) => thread.threadId === pendingSelection.threadId)
-                ?.threadId ?? null
+            ? (list.find(
+                (thread) => thread.threadId === pendingSelection.threadId,
+              )?.threadId ?? null)
             : null;
         if (pendingSelection && pendingSelection.repoId === selectedRepoId) {
           pendingThreadSelectionRef.current = null;
         }
         const preferred =
-          pendingThreadId ?? lastOpenedThreadId ?? filtered[0]?.threadId ?? null;
+          pendingThreadId ??
+          lastOpenedThreadId ??
+          filtered[0]?.threadId ??
+          null;
         setSelectedThreadId(preferred);
         if (preferred) {
           const resumeResult = await api.resumeThread(

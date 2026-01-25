@@ -8,10 +8,7 @@ const REASONING_CONTENT_LIMIT = 20000;
 const truncateText = (value: string, limit: number) =>
   value.length > limit ? value.slice(0, limit) : value;
 
-const extractTextParts = (
-  value: unknown,
-  separator = "\n\n",
-): string => {
+const extractTextParts = (value: unknown, separator = "\n\n"): string => {
   if (typeof value === "string") return value;
   if (!Array.isArray(value)) return "";
   const parts: string[] = [];

@@ -11,11 +11,7 @@ const MAX_PORT = 65_535;
 const parseEnvPort = (value) => {
   if (value === undefined) return undefined;
   const parsed = Number(value);
-  if (
-    !Number.isInteger(parsed) ||
-    parsed < MIN_PORT ||
-    parsed > MAX_PORT
-  ) {
+  if (!Number.isInteger(parsed) || parsed < MIN_PORT || parsed > MAX_PORT) {
     throw new Error(
       `Invalid port: "${value}". Set a number between ${MIN_PORT} and ${MAX_PORT}.`,
     );

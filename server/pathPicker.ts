@@ -16,10 +16,7 @@ type PickerResult =
   | { status: "unavailable" }
   | { status: "error"; error: Error };
 
-const runCommand = (
-  command: string,
-  args: string[],
-): Promise<CommandOutcome> =>
+const runCommand = (command: string, args: string[]): Promise<CommandOutcome> =>
   new Promise((resolve) => {
     const child = spawn(command, args, { windowsHide: true });
     let stdout = "";

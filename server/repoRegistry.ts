@@ -136,7 +136,6 @@ export class RepoRegistry {
     this.cache = repos;
   }
 
-
   private async normalizePath(inputPath: string): Promise<string> {
     const resolved = path.resolve(inputPath);
     await access(resolved, fsConstants.R_OK).catch(() => {

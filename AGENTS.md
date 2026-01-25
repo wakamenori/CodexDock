@@ -25,9 +25,7 @@
   - 実行時データは `data/` に保存される前提（秘密情報はコミットしない）
 
 ## Commands to validate changes (run these after edits)
-- `pnpm lint`
-- `pnpm typecheck`
-- `pnpm test`
+- `pnpm check`（format + lint + typecheck + test）
 
 ## Coding conventions
 - Formatting/lint: Biome（2スペース、import整理、lintは推奨ルール）

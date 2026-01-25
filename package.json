@@ -15,8 +15,10 @@
     "build:server": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "start": "node scripts/start.mjs",
+    "up": "rm -rf dist && pnpm build && pnpm start",
     "lint": "biome lint .",
     "format": "biome check --write .",
+    "check": "pnpm format && pnpm typecheck && pnpm test",
     "typecheck": "tsgo --noEmit -p tsconfig.app.json && tsgo --noEmit -p tsconfig.server.json",
     "test": "vitest --run"
   },

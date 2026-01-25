@@ -132,14 +132,18 @@ export function Sidebar({
                             ? "bg-ink-700/70 text-ink-100"
                             : "text-ink-200 hover:bg-ink-800/60"
                         }`}
-                        onClick={() => onSelectThread(repo.repoId, thread.threadId)}
+                        onClick={() =>
+                          onSelectThread(repo.repoId, thread.threadId)
+                        }
                         disabled={running}
                         type="button"
                         title={label}
                       >
                         <span
                           className={`h-2 w-2 rounded-full ${statusDot(sessionStatus)} ${
-                            sessionStatus === "connected" ? "animate-pulseSoft" : ""
+                            sessionStatus === "connected"
+                              ? "animate-pulseSoft"
+                              : ""
                           }`}
                         />
                         <span className="flex-1 truncate">{label}</span>

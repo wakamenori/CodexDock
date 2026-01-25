@@ -24,11 +24,7 @@ export type ResolvedConfig = {
 export const parsePortEnv = (value: string | undefined): number | undefined => {
   if (value === undefined) return undefined;
   const parsed = Number(value);
-  if (
-    !Number.isInteger(parsed) ||
-    parsed < MIN_PORT ||
-    parsed > MAX_PORT
-  ) {
+  if (!Number.isInteger(parsed) || parsed < MIN_PORT || parsed > MAX_PORT) {
     throw new Error(
       `Invalid PORT: "${value}". Set a number between ${MIN_PORT} and ${MAX_PORT}, or unset it to enable automatic port selection.`,
     );

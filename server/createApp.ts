@@ -404,10 +404,7 @@ export const createApp = (options: CreateAppOptions) => {
       }
     });
 
-    logger.info(
-      { component: "static", root: resolvedRoot },
-      "static_enabled",
-    );
+    logger.info({ component: "static", root: resolvedRoot }, "static_enabled");
   }
 
   return app;
