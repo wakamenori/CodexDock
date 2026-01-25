@@ -67,6 +67,13 @@ class FakeWebSocket {
     this.listeners[type].push(listener);
   }
 
+  emitOpen() {
+    const listeners = this.listeners.open ?? [];
+    for (const listener of listeners) {
+      listener();
+    }
+  }
+
   emitMessage(data: unknown) {
     const listeners = this.listeners.message ?? [];
     const event = { data: JSON.stringify(data) };
@@ -100,6 +107,79 @@ const setupHook = async () => {
   });
   return hook;
 };
+
+describe("useConversationState websocket subscriptions", () => {
+  beforeEach(() => {
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+    FakeWebSocket.instances = [];
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("subscribes to all repos when websocket opens", async () => {
+    const repos: Repo[] = [
+      {
+        repoId: "repo-1",
+        name: "repo-1",
+        path: "/repo-1",
+        lastOpenedThreadId: "thread-1",
+      },
+      {
+        repoId: "repo-2",
+        name: "repo-2",
+        path: "/repo-2",
+        lastOpenedThreadId: "thread-2",
+      },
+    ];
+    const threads1: ThreadSummary[] = [
+      { threadId: "thread-1", cwd: "/repo-1" },
+    ];
+    const threads2: ThreadSummary[] = [
+      { threadId: "thread-2", cwd: "/repo-2" },
+    ];
+
+    mockedApi.listRepos.mockResolvedValue(repos);
+    mockedApi.startSession.mockResolvedValue(undefined);
+    mockedApi.listThreads.mockImplementation(async (repoId) => {
+      return repoId === "repo-1" ? threads1 : threads2;
+    });
+    mockedApi.listModels.mockResolvedValue(["gpt-5.2-codex"]);
+    mockedApi.resumeThread.mockResolvedValue({});
+    mockedApi.updateRepo.mockResolvedValue(repos[0]);
+
+    const hook = renderHook(() => useConversationState());
+    await waitFor(() => {
+      expect(hook.result.current.selectedThreadId).toBe("thread-1");
+    });
+
+    const ws = FakeWebSocket.instances[0];
+    act(() => {
+      ws.emitOpen();
+    });
+
+    await waitFor(() => {
+      expect(ws.send).toHaveBeenCalledTimes(2);
+    });
+
+    const sent = ws.send.mock.calls.map(([payload]) =>
+      JSON.parse(String(payload)),
+    );
+    expect(sent).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "subscribe",
+          payload: { repoId: "repo-1" },
+        }),
+        expect.objectContaining({
+          type: "subscribe",
+          payload: { repoId: "repo-2" },
+        }),
+      ]),
+    );
+  });
+});
 
 describe("useConversationState handleSend", () => {
   beforeEach(() => {

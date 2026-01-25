@@ -171,7 +171,7 @@ export const useConversationState = (): UseAppStateResult => {
   const [inputText, setInputText] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const subscribedRepoRef = useRef<string | null>(null);
+  const subscribedRepoRef = useRef<Set<string>>(new Set());
   const selectedThreadIdRef = useRef<string | null>(null);
   const pendingThreadSelectionRef = useRef<{
     repoId: string;
@@ -534,7 +534,10 @@ export const useConversationState = (): UseAppStateResult => {
     );
     wsRef.current = ws;
 
-    ws.addEventListener("open", () => setWsConnected(true));
+    ws.addEventListener("open", () => {
+      subscribedRepoRef.current = new Set();
+      setWsConnected(true);
+    });
     ws.addEventListener("close", () => setWsConnected(false));
     ws.addEventListener("error", () => setWsConnected(false));
     ws.addEventListener("message", (event) => {
@@ -552,22 +555,27 @@ export const useConversationState = (): UseAppStateResult => {
   }, [handleWsMessage]);
 
   useEffect(() => {
-    if (!wsConnected || !selectedRepoId || !wsRef.current) return;
-    const previousRepoId = subscribedRepoRef.current;
-    if (previousRepoId && previousRepoId !== selectedRepoId) {
+    if (!wsConnected || !wsRef.current) return;
+    const desired = new Set(repos.map((repo) => repo.repoId));
+    const subscribed = subscribedRepoRef.current;
+    for (const repoId of desired) {
+      if (subscribed.has(repoId)) continue;
+      sendWs({
+        type: "subscribe",
+        requestId: createRequestId(),
+        payload: { repoId },
+      });
+    }
+    for (const repoId of subscribed) {
+      if (desired.has(repoId)) continue;
       sendWs({
         type: "unsubscribe",
         requestId: createRequestId(),
-        payload: { repoId: previousRepoId },
+        payload: { repoId },
       });
     }
-    subscribedRepoRef.current = selectedRepoId;
-    sendWs({
-      type: "subscribe",
-      requestId: createRequestId(),
-      payload: { repoId: selectedRepoId },
-    });
-  }, [sendWs, selectedRepoId, wsConnected]);
+    subscribedRepoRef.current = desired;
+  }, [repos, sendWs, wsConnected]);
 
   useEffect(() => {
     if (!selectedRepoId) return;
