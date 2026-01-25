@@ -81,7 +81,7 @@ export function Sidebar({
       return a.threadId.localeCompare(b.threadId);
     });
 
-  const maxThreads = 3;
+  const maxThreads = 5;
 
   return (
     <aside className="w-72 shrink-0 rounded-2xl border border-ink-700 bg-ink-800/70 p-4 shadow-panel flex flex-col gap-3">
