@@ -20,8 +20,13 @@ export class RepoRegistry {
   private cache: RepoEntry[] | null = null;
   private logger: Logger;
 
-  constructor(dataDir: string, logger: Logger) {
-    this.filePath = path.join(dataDir, "repos.json");
+  constructor(
+    dataDir: string,
+    logger: Logger,
+    options: { fileName?: string } = {},
+  ) {
+    const fileName = options.fileName ?? "repos.json";
+    this.filePath = path.join(dataDir, fileName);
     this.logger = logger;
   }
 
@@ -130,6 +135,7 @@ export class RepoRegistry {
     await rename(tempPath, this.filePath);
     this.cache = repos;
   }
+
 
   private async normalizePath(inputPath: string): Promise<string> {
     const resolved = path.resolve(inputPath);

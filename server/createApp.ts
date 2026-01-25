@@ -1,4 +1,7 @@
+import { readFile, stat } from "node:fs/promises";
+import path from "node:path";
 import { type Context, Hono } from "hono";
+import { serveStatic } from "hono/serve-static";
 import type { Logger } from "pino";
 import type { AppServerManager } from "./appServerManager.js";
 import { ApiError, badRequest, jsonError, notFound } from "./errors.js";
@@ -97,11 +100,13 @@ type CreateAppOptions = {
   turnState: TurnStateStore;
   refresher: ThreadListRefresher;
   pathPicker?: RepoPathPicker;
+  staticRoot?: string;
 };
 
 export const createApp = (options: CreateAppOptions) => {
   const { registry, manager, logger, turnState, refresher } = options;
   const pathPicker = options.pathPicker ?? pickRepoPath;
+  const staticRoot = options.staticRoot;
   const app = new Hono();
 
   app.use("*", async (c, next) => {
@@ -340,6 +345,70 @@ export const createApp = (options: CreateAppOptions) => {
       throw appServerError(error);
     }
   });
+
+  const isReservedPath = (requestPath: string) =>
+    requestPath === "/api" ||
+    requestPath.startsWith("/api/") ||
+    requestPath === "/ws" ||
+    requestPath.startsWith("/ws/");
+
+  if (staticRoot) {
+    const resolvedRoot = path.resolve(staticRoot);
+    const indexFile = path.join(resolvedRoot, "index.html");
+    const staticMiddleware = serveStatic({
+      root: resolvedRoot,
+      getContent: async (filePath) => {
+        try {
+          return await readFile(filePath);
+        } catch (error) {
+          const err = error as NodeJS.ErrnoException;
+          if (err.code === "ENOENT") return null;
+          throw error;
+        }
+      },
+      isDir: async (filePath) => {
+        try {
+          const stats = await stat(filePath);
+          return stats.isDirectory();
+        } catch (error) {
+          const err = error as NodeJS.ErrnoException;
+          if (err.code === "ENOENT") return false;
+          throw error;
+        }
+      },
+    });
+
+    app.get("*", async (c, next) => {
+      if (isReservedPath(c.req.path)) return next();
+      return staticMiddleware(c, next);
+    });
+
+    app.get("*", async (c) => {
+      if (isReservedPath(c.req.path)) {
+        return c.text("Not Found", 404);
+      }
+      const accept = c.req.header("Accept") ?? "";
+      if (!accept.includes("text/html")) {
+        return c.text("Not Found", 404);
+      }
+      try {
+        const content = await readFile(indexFile);
+        c.header("Content-Type", "text/html");
+        return c.body(content);
+      } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err.code === "ENOENT") {
+          return c.text("Not Found", 404);
+        }
+        throw error;
+      }
+    });
+
+    logger.info(
+      { component: "static", root: resolvedRoot },
+      "static_enabled",
+    );
+  }
 
   return app;
 };
