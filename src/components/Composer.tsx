@@ -28,10 +28,11 @@ export function Composer({
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
+              if (running || !selectedThreadId || !inputText.trim()) return;
               void onSend();
             }
           }}
-          disabled={!selectedThreadId || running}
+          disabled={!selectedThreadId}
         />
         <div className="mt-2 flex items-center justify-between text-xs text-ink-300">
           <span>{running ? "Streaming..." : "Shift+Enter for newline"}</span>
