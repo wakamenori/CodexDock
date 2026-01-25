@@ -553,7 +553,8 @@ export const useConversationState = (): UseAppStateResult => {
   );
 
   const handleSend = useCallback(async () => {
-    const text = inputText.trim();
+    const originalText = inputText;
+    const text = originalText.trim();
     if (!selectedRepoId || !selectedThreadId || !text) return;
     updateThreadStatus(selectedThreadId, (status) => ({
       ...status,
@@ -572,6 +573,7 @@ export const useConversationState = (): UseAppStateResult => {
         pending: true,
       },
     ]);
+    setInputText("");
     try {
       const turn = await api.startTurn(selectedRepoId, selectedThreadId, [
         { type: "text", text },
@@ -580,7 +582,6 @@ export const useConversationState = (): UseAppStateResult => {
         ...prev,
         [selectedThreadId]: turn.turnId,
       }));
-      setInputText("");
     } catch (error) {
       updateThreadMessages(selectedThreadId, (list) =>
         list.filter((item) => item.id !== pendingId),
@@ -589,6 +590,7 @@ export const useConversationState = (): UseAppStateResult => {
         ...status,
         processing: false,
       }));
+      setInputText(originalText);
       toast.error(error instanceof Error ? error.message : "Turn failed");
     }
   }, [
