@@ -1,7 +1,12 @@
 import { useState } from "react";
 
 import { formatRelativeTime } from "../shared/date";
-import type { Repo, SessionStatus, ThreadSummary } from "../types";
+import type {
+  Repo,
+  SessionStatus,
+  ThreadSummary,
+  ThreadUiStatus,
+} from "../types";
 
 type RepoGroup = {
   repo: Repo;
@@ -11,6 +16,7 @@ type RepoGroup = {
 
 type SidebarProps = {
   repoGroups: RepoGroup[];
+  threadUiStatusByThread: Record<string, ThreadUiStatus>;
   selectedRepoId: string | null;
   running: boolean;
   selectedThreadId: string | null;
@@ -22,6 +28,7 @@ type SidebarProps = {
 
 export function Sidebar({
   repoGroups,
+  threadUiStatusByThread,
   selectedRepoId,
   running,
   selectedThreadId,
@@ -34,18 +41,23 @@ export function Sidebar({
     {},
   );
 
-  const statusDot = (status: SessionStatus) => {
+  const statusDot = (status: ThreadUiStatus) => {
     switch (status) {
-      case "connected":
-        return "bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]";
-      case "starting":
-        return "bg-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.12)]";
-      case "error":
-        return "bg-rose-400 shadow-[0_0_0_4px_rgba(251,113,133,0.12)]";
+      case "reviewing":
+        return "bg-teal-400 shadow-[0_0_0_4px_rgba(45,212,191,0.2)]";
+      case "processing":
+        return "bg-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.2)]";
+      case "unread":
+        return "bg-sky-400 shadow-[0_0_0_4px_rgba(56,189,248,0.22)]";
       default:
-        return "bg-ink-500";
+        return "bg-emerald-400 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]";
     }
   };
+
+  const statusPulse = (status: ThreadUiStatus) =>
+    status === "processing" || status === "reviewing"
+      ? "animate-pulseSoft"
+      : "";
 
   const getThreadTime = (value?: string) => formatRelativeTime(value);
 
@@ -75,7 +87,7 @@ export function Sidebar({
 
       <div className="flex-1 min-h-0 overflow-y-auto pr-1 scrollbar-thin">
         <div className="flex flex-col gap-3">
-          {repoGroups.map(({ repo, threads, sessionStatus }) => {
+          {repoGroups.map(({ repo, threads }) => {
             const isSelected = selectedRepoId === repo.repoId;
             const orderedThreads = sortThreads(threads);
             const expanded = expandedRepos[repo.repoId] ?? false;
@@ -124,6 +136,8 @@ export function Sidebar({
                     const timeLabel = getThreadTime(thread.updatedAt);
                     const isThreadSelected =
                       isSelected && selectedThreadId === thread.threadId;
+                    const threadStatus =
+                      threadUiStatusByThread[thread.threadId] ?? "ready";
                     return (
                       <button
                         key={thread.threadId}
@@ -135,16 +149,11 @@ export function Sidebar({
                         onClick={() =>
                           onSelectThread(repo.repoId, thread.threadId)
                         }
-                        disabled={running}
                         type="button"
                         title={label}
                       >
                         <span
-                          className={`h-2 w-2 rounded-full ${statusDot(sessionStatus)} ${
-                            sessionStatus === "connected"
-                              ? "animate-pulseSoft"
-                              : ""
-                          }`}
+                          className={`h-2 w-2 rounded-full ${statusDot(threadStatus)} ${statusPulse(threadStatus)}`}
                         />
                         <span className="flex-1 truncate">{label}</span>
                         {timeLabel && (

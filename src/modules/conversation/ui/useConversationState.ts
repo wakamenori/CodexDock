@@ -11,13 +11,16 @@ import type {
   JsonValue,
   Repo,
   SessionStatus,
+  ThreadStatusFlags,
   ThreadSummary,
+  ThreadUiStatus,
   WsInboundMessage,
   WsOutboundMessage,
 } from "../../../types";
 import {
   buildMessagesFromResume,
   createRequestId,
+  deriveReviewingFromResume,
   normalizeRootPath,
 } from "../domain/parsers";
 import { createWsEventHandlers } from "../infra/wsHandlers";
@@ -29,6 +32,7 @@ export type UseAppStateResult = {
     threads: ThreadSummary[];
     sessionStatus: SessionStatus;
   }[];
+  threadUiStatusByThread: Record<string, ThreadUiStatus>;
   selectedRepoId: string | null;
   selectedRepo: Repo | null;
   selectedThreadId: string | null;
@@ -74,8 +78,9 @@ export const useConversationState = (): UseAppStateResult => {
   const [approvalsByThread, setApprovalsByThread] = useState<
     Record<string, ApprovalRequest[]>
   >({});
-  const [activeTurnByThread, setActiveTurnByThread] = useState<
-    Record<string, string | null>
+  const [, setActiveTurnByThread] = useState<Record<string, string | null>>({});
+  const [threadStatusByThread, setThreadStatusByThread] = useState<
+    Record<string, ThreadStatusFlags>
   >({});
   const [inputText, setInputText] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
@@ -105,7 +110,7 @@ export const useConversationState = (): UseAppStateResult => {
     ? (approvalsByThread[selectedThreadId] ?? [])
     : [];
   const running = selectedThreadId
-    ? Boolean(activeTurnByThread[selectedThreadId])
+    ? Boolean(threadStatusByThread[selectedThreadId]?.processing)
     : false;
 
   const repoGroups = useMemo(
@@ -126,6 +131,27 @@ export const useConversationState = (): UseAppStateResult => {
       }),
     [repos, sessionStatusByRepo, threadsByRepo],
   );
+
+  const threadUiStatusByThread = useMemo(() => {
+    const entries = Object.entries(threadStatusByThread);
+    const statusMap: Record<string, ThreadUiStatus> = {};
+    for (const [threadId, status] of entries) {
+      if (status.reviewing) {
+        statusMap[threadId] = "reviewing";
+        continue;
+      }
+      if (status.processing) {
+        statusMap[threadId] = "processing";
+        continue;
+      }
+      if (status.unread) {
+        statusMap[threadId] = "unread";
+        continue;
+      }
+      statusMap[threadId] = "ready";
+    }
+    return statusMap;
+  }, [threadStatusByThread]);
 
   useEffect(() => {
     selectedThreadIdRef.current = selectedThreadId;
@@ -179,6 +205,24 @@ export const useConversationState = (): UseAppStateResult => {
     [],
   );
 
+  const updateThreadStatus = useCallback(
+    (
+      threadId: string,
+      updater: (status: ThreadStatusFlags) => ThreadStatusFlags,
+    ) => {
+      setThreadStatusByThread((prev) => {
+        const current = prev[threadId] ?? {
+          processing: false,
+          reviewing: false,
+          unread: false,
+        };
+        const next = updater(current);
+        return { ...prev, [threadId]: next };
+      });
+    },
+    [],
+  );
+
   const setThreadMessages = useCallback(
     (threadId: string, list: ChatMessage[]) => {
       setMessagesByThread((prev) => ({ ...prev, [threadId]: list }));
@@ -197,14 +241,24 @@ export const useConversationState = (): UseAppStateResult => {
         setActiveTurn: (threadId: string, turnId: string | null) => {
           setActiveTurnByThread((prev) => ({ ...prev, [threadId]: turnId }));
         },
+        updateThreadStatus,
       }),
     [
       updateThreadMessages,
       updateThreadDiffs,
       updateThreadFileChanges,
       updateThreadApprovals,
+      updateThreadStatus,
     ],
   );
+
+  useEffect(() => {
+    if (!selectedThreadId) return;
+    updateThreadStatus(selectedThreadId, (status) => ({
+      ...status,
+      unread: false,
+    }));
+  }, [selectedThreadId, updateThreadStatus]);
 
   useEffect(() => {
     void (async () => {
@@ -365,6 +419,11 @@ export const useConversationState = (): UseAppStateResult => {
             resumeResult,
           );
           setThreadMessages(preferred, resumeMessages);
+          updateThreadStatus(preferred, (status) => ({
+            ...status,
+            reviewing: deriveReviewingFromResume(resumeResult),
+            processing: false,
+          }));
           await api.updateRepo(selectedRepoId, {
             lastOpenedThreadId: preferred,
           });
@@ -380,6 +439,7 @@ export const useConversationState = (): UseAppStateResult => {
     normalizedRepoPath,
     selectedRepoId,
     setThreadMessages,
+    updateThreadStatus,
   ]);
 
   const handleApprove = useCallback(
@@ -410,6 +470,10 @@ export const useConversationState = (): UseAppStateResult => {
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
     if (!selectedRepoId || !selectedThreadId || !text) return;
+    updateThreadStatus(selectedThreadId, (status) => ({
+      ...status,
+      processing: true,
+    }));
     const pendingId = `pending-${Date.now()}-${Math.random()
       .toString(16)
       .slice(2)}`;
@@ -436,9 +500,19 @@ export const useConversationState = (): UseAppStateResult => {
       updateThreadMessages(selectedThreadId, (list) =>
         list.filter((item) => item.id !== pendingId),
       );
+      updateThreadStatus(selectedThreadId, (status) => ({
+        ...status,
+        processing: false,
+      }));
       toast.error(error instanceof Error ? error.message : "Turn failed");
     }
-  }, [inputText, selectedRepoId, selectedThreadId, updateThreadMessages]);
+  }, [
+    inputText,
+    selectedRepoId,
+    selectedThreadId,
+    updateThreadMessages,
+    updateThreadStatus,
+  ]);
 
   const handleCreateThread = useCallback(async () => {
     if (!selectedRepoId) return;
@@ -470,6 +544,11 @@ export const useConversationState = (): UseAppStateResult => {
         const resumeResult = await api.resumeThread(repoId, threadId);
         const resumeMessages = buildMessagesFromResume(threadId, resumeResult);
         setThreadMessages(threadId, resumeMessages);
+        updateThreadStatus(threadId, (status) => ({
+          ...status,
+          reviewing: deriveReviewingFromResume(resumeResult),
+          processing: false,
+        }));
         await api.updateRepo(repoId, { lastOpenedThreadId: threadId });
       } catch (error) {
         toast.error(
@@ -477,7 +556,7 @@ export const useConversationState = (): UseAppStateResult => {
         );
       }
     },
-    [selectedRepoId, setThreadMessages],
+    [selectedRepoId, setThreadMessages, updateThreadStatus],
   );
 
   const handleAddRepo = useCallback(async () => {
@@ -507,6 +586,7 @@ export const useConversationState = (): UseAppStateResult => {
   return {
     repos,
     repoGroups,
+    threadUiStatusByThread,
     selectedRepoId,
     selectedRepo,
     selectedThreadId,

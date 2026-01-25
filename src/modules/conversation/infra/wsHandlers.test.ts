@@ -5,6 +5,7 @@ import type {
   ChatMessage,
   DiffEntry,
   FileChangeEntry,
+  ThreadStatusFlags,
 } from "../../../types";
 import { createWsEventHandlers } from "./wsHandlers";
 
@@ -14,6 +15,7 @@ const createStore = (selectedThreadId: string | null = "t1") => {
   const fileChanges: Record<string, Record<string, FileChangeEntry>> = {};
   const approvals: Record<string, ApprovalRequest[]> = {};
   const activeTurn: Record<string, string | null> = {};
+  const threadStatus: Record<string, ThreadStatusFlags> = {};
 
   const handlers = createWsEventHandlers({
     getSelectedThreadId: () => selectedThreadId,
@@ -32,6 +34,14 @@ const createStore = (selectedThreadId: string | null = "t1") => {
     setActiveTurn: (threadId, turnId) => {
       activeTurn[threadId] = turnId;
     },
+    updateThreadStatus: (threadId, updater) => {
+      const current = threadStatus[threadId] ?? {
+        processing: false,
+        reviewing: false,
+        unread: false,
+      };
+      threadStatus[threadId] = updater(current);
+    },
   });
 
   return {
@@ -42,6 +52,7 @@ const createStore = (selectedThreadId: string | null = "t1") => {
       fileChanges,
       approvals,
       activeTurn,
+      threadStatus,
     }),
   };
 };
@@ -123,5 +134,67 @@ describe("createWsEventHandlers", () => {
       params: { turnId: "tA" },
     });
     expect(store.snapshots().activeTurn.t1).toBeNull();
+  });
+
+  it("tracks processing on item start and delta", () => {
+    const store = createStore();
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/started",
+      params: { item: { id: "m1", type: "agentMessage" } },
+    });
+    expect(store.snapshots().threadStatus.t1.processing).toBe(true);
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/agentMessage/delta",
+      params: { item: { id: "m1" }, delta: { text: "hi" } },
+    });
+    expect(store.snapshots().threadStatus.t1.processing).toBe(true);
+  });
+
+  it("enters and exits review mode", () => {
+    const store = createStore();
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/started",
+      params: { item: { id: "rv1", type: "enteredReviewMode" } },
+    });
+    expect(store.snapshots().threadStatus.t1.reviewing).toBe(true);
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/completed",
+      params: { item: { id: "rv2", type: "exitedReviewMode" } },
+    });
+    expect(store.snapshots().threadStatus.t1.reviewing).toBe(false);
+  });
+
+  it("marks unread on assistant completion for inactive thread only", () => {
+    const store = createStore("t1");
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/completed",
+      params: {
+        threadId: "t2",
+        item: { id: "a1", type: "assistantMessage", text: "done" },
+      },
+    });
+    expect(store.snapshots().threadStatus.t2.unread).toBe(true);
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/completed",
+      params: {
+        threadId: "t1",
+        item: { id: "a2", type: "assistantMessage", text: "done" },
+      },
+    });
+    expect(store.snapshots().threadStatus.t1?.unread ?? false).toBe(false);
+  });
+
+  it("clears processing and reviewing on turn failure", () => {
+    const store = createStore();
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/started",
+      params: { item: { id: "rv1", type: "enteredReviewMode" } },
+    });
+    store.handlers.handleAppServerNotification("r1", {
+      method: "turn/failed",
+      params: { turnId: "tA" },
+    });
+    expect(store.snapshots().threadStatus.t1.processing).toBe(false);
+    expect(store.snapshots().threadStatus.t1.reviewing).toBe(false);
   });
 });

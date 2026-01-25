@@ -5,6 +5,7 @@ import type {
   DiffEntry,
   FileChangeEntry,
   JsonValue,
+  ThreadStatusFlags,
   WsInboundMessage,
 } from "../../../types";
 import {
@@ -55,6 +56,10 @@ type ThreadStateStore = {
     updater: (list: ApprovalRequest[]) => ApprovalRequest[],
   ) => void;
   setActiveTurn: (threadId: string, turnId: string | null) => void;
+  updateThreadStatus: (
+    threadId: string,
+    updater: (status: ThreadStatusFlags) => ThreadStatusFlags,
+  ) => void;
 };
 
 const ensureThreadId = (
@@ -70,6 +75,28 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
     const { method, params } = message;
     const threadId = ensureThreadId(store, params);
     if (!threadId) return;
+    const setProcessing = (value: boolean) => {
+      store.updateThreadStatus(threadId, (status) => ({
+        ...status,
+        processing: value,
+      }));
+    };
+    const setReviewing = (value: boolean) => {
+      store.updateThreadStatus(threadId, (status) => ({
+        ...status,
+        reviewing: value,
+      }));
+    };
+    const setUnread = (value: boolean) => {
+      store.updateThreadStatus(threadId, (status) => ({
+        ...status,
+        unread: value,
+      }));
+    };
+    const isDeltaMethod = method.includes("/delta") || method.endsWith("Delta");
+    if (isDeltaMethod) {
+      setProcessing(true);
+    }
 
     if (
       method === "item/agentMessage/delta" ||
@@ -99,6 +126,7 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
     }
 
     if (method === "item/started" || method === "item/completed") {
+      setProcessing(true);
       const item = parseItemRecord(params);
       const itemType = item?.type;
       if (!item || typeof itemType !== "string") return;
@@ -147,6 +175,23 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
           }),
         );
       }
+      if (itemType === "enteredReviewMode") {
+        setReviewing(true);
+      }
+      if (itemType === "exitedReviewMode") {
+        setReviewing(false);
+        setProcessing(false);
+      }
+      if (
+        method === "item/completed" &&
+        (itemType === "agentMessage" || itemType === "assistantMessage")
+      ) {
+        setProcessing(false);
+        const selectedThreadId = store.getSelectedThreadId();
+        if (selectedThreadId && selectedThreadId !== threadId) {
+          setUnread(true);
+        }
+      }
       return;
     }
 
@@ -163,10 +208,19 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
       if (turnId) {
         store.setActiveTurn(threadId, String(turnId));
       }
+      setProcessing(true);
     }
 
-    if (method === "turn/completed" || method === "turn/failed") {
+    if (
+      method === "turn/completed" ||
+      method === "turn/failed" ||
+      method === "turn/error"
+    ) {
       store.setActiveTurn(threadId, null);
+      setProcessing(false);
+      if (method !== "turn/completed") {
+        setReviewing(false);
+      }
     }
   };
 

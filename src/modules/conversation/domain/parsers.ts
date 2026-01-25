@@ -221,6 +221,23 @@ export const buildMessagesFromResume = (
   return messages;
 };
 
+export const deriveReviewingFromResume = (result: unknown): boolean => {
+  const resultRecord = asRecord(result);
+  const resumePayload = resultRecord?.resume ?? resultRecord;
+  const items = extractResumeItems(resumePayload);
+  let reviewing = false;
+  for (const item of items) {
+    const itemType = item.type;
+    if (itemType === "enteredReviewMode") {
+      reviewing = true;
+    }
+    if (itemType === "exitedReviewMode") {
+      reviewing = false;
+    }
+  }
+  return reviewing;
+};
+
 export const parseFileChangeEntries = (
   item: Record<string, unknown>,
 ): FileChangeEntry["changes"] => {

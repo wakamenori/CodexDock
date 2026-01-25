@@ -4,6 +4,7 @@ import {
   appendReasoningContent,
   appendReasoningSummary,
   buildMessagesFromResume,
+  deriveReviewingFromResume,
   normalizeReasoningContent,
   normalizeReasoningSummary,
   normalizeRootPath,
@@ -164,6 +165,41 @@ describe("buildMessagesFromResume", () => {
     const messages = buildMessagesFromResume("t", payload);
     expect(messages[0].summary).toBe("a\n\nb");
     expect(messages[0].content).toBe("c\n\nd");
+  });
+});
+
+describe("deriveReviewingFromResume", () => {
+  it("returns true when review is entered without exit", () => {
+    const payload = {
+      resume: {
+        thread: {
+          turns: [
+            {
+              items: [{ id: "rv1", type: "enteredReviewMode" }],
+            },
+          ],
+        },
+      },
+    };
+    expect(deriveReviewingFromResume(payload)).toBe(true);
+  });
+
+  it("returns false when review is exited after enter", () => {
+    const payload = {
+      resume: {
+        thread: {
+          turns: [
+            {
+              items: [
+                { id: "rv1", type: "enteredReviewMode" },
+                { id: "rv2", type: "exitedReviewMode" },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    expect(deriveReviewingFromResume(payload)).toBe(false);
   });
 });
 

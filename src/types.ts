@@ -21,6 +21,14 @@ export type ThreadSummary = {
   updatedAt?: string;
 };
 
+export type ThreadStatusFlags = {
+  processing: boolean;
+  reviewing: boolean;
+  unread: boolean;
+};
+
+export type ThreadUiStatus = "reviewing" | "processing" | "unread" | "ready";
+
 export type SessionStatus = "connected" | "starting" | "stopped" | "error";
 
 export type WsInboundMessage =
