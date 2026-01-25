@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import { ApiError, api } from "../../../api";
 import { extractRepoName } from "../../../shared/paths";
+import { asRecord } from "../../../shared/records";
 import type {
   ApprovalRequest,
   ChatMessage,
@@ -49,11 +50,14 @@ export type UseAppStateResult = {
   fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
   inputText: string;
+  selectedModel: string | null;
+  availableModels: string[] | undefined;
   selectRepo: (repoId: string | null) => void;
   setInputText: (value: string) => void;
   handleAddRepo: () => Promise<void>;
   handleCreateThread: () => Promise<void>;
   handleSelectThread: (repoId: string, threadId: string) => Promise<void>;
+  handleModelChange: (model: string | null) => void;
   handleApprove: (
     repoId: string,
     request: ApprovalRequest,
@@ -69,6 +73,68 @@ const summarizeThreadsForLog = (threads: ThreadSummary[]) =>
     updatedAt: thread.updatedAt ?? null,
     previewLength: thread.preview?.length ?? 0,
   }));
+
+const DEFAULT_MODEL = "gpt-5.2-codex";
+
+const getArrayValue = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): unknown[] | undefined => {
+  if (!record) return undefined;
+  const value = record[key];
+  return Array.isArray(value) ? value : undefined;
+};
+
+const getStringValue = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): string | undefined => {
+  if (!record) return undefined;
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+};
+
+const extractModelIdsFromArray = (items: unknown[]) => {
+  const ids: string[] = [];
+  for (const item of items) {
+    if (typeof item === "string") {
+      ids.push(item);
+      continue;
+    }
+    const record = asRecord(item);
+    const id =
+      getStringValue(record, "id") ??
+      getStringValue(record, "name") ??
+      getStringValue(record, "model") ??
+      getStringValue(record, "value");
+    if (id) ids.push(id);
+  }
+  return ids;
+};
+
+const extractModelIds = (payload: unknown): string[] => {
+  if (Array.isArray(payload)) {
+    return extractModelIdsFromArray(payload);
+  }
+  const record = asRecord(payload);
+  if (!record) return [];
+  const nested = record.result;
+  if (nested) {
+    const nestedIds = extractModelIds(nested);
+    if (nestedIds.length > 0) return nestedIds;
+  }
+  const candidates = [
+    getArrayValue(record, "models"),
+    getArrayValue(record, "data"),
+    getArrayValue(record, "items"),
+  ];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const ids = extractModelIdsFromArray(candidate);
+    if (ids.length > 0) return ids;
+  }
+  return [];
+};
 
 export const useConversationState = (): UseAppStateResult => {
   const [repos, setRepos] = useState<Repo[]>([]);
@@ -95,6 +161,12 @@ export const useConversationState = (): UseAppStateResult => {
   const [, setActiveTurnByThread] = useState<Record<string, string | null>>({});
   const [threadStatusByThread, setThreadStatusByThread] = useState<
     Record<string, ThreadStatusFlags>
+  >({});
+  const [availableModelsByRepo, setAvailableModelsByRepo] = useState<
+    Record<string, string[]>
+  >({});
+  const [modelByThread, setModelByThread] = useState<
+    Record<string, string | null>
   >({});
   const [inputText, setInputText] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
@@ -129,6 +201,12 @@ export const useConversationState = (): UseAppStateResult => {
   const running = selectedThreadId
     ? Boolean(threadStatusByThread[selectedThreadId]?.processing)
     : false;
+  const selectedModel = selectedThreadId
+    ? (modelByThread[selectedThreadId] ?? null)
+    : null;
+  const availableModels = selectedRepoId
+    ? availableModelsByRepo[selectedRepoId]
+    : undefined;
 
   const repoGroups = useMemo(
     () =>
@@ -381,6 +459,30 @@ export const useConversationState = (): UseAppStateResult => {
     })();
   }, [applyThreadList, repos, selectedRepoId, threadsByRepo]);
 
+  useEffect(() => {
+    if (!selectedRepoId) return;
+    void (async () => {
+      try {
+        const result = await api.listModels(selectedRepoId);
+        const models = extractModelIds(result);
+        setAvailableModelsByRepo((prev) => {
+          const next = { ...prev };
+          if (models.length > 0) {
+            next[selectedRepoId] = models;
+          } else {
+            delete next[selectedRepoId];
+          }
+          return next;
+        });
+      } catch (error) {
+        console.warn("Failed to load models", selectedRepoId, error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to load models",
+        );
+      }
+    })();
+  }, [selectedRepoId]);
+
   const sendWs = useCallback((message: WsOutboundMessage) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message));
@@ -534,6 +636,34 @@ export const useConversationState = (): UseAppStateResult => {
     updateThreadStatus,
   ]);
 
+  useEffect(() => {
+    if (!selectedRepoId || !selectedThreadId) return;
+    const models = availableModelsByRepo[selectedRepoId];
+    if (!models || models.length === 0) return;
+    const current = modelByThread[selectedThreadId];
+    if (!current) return;
+    if (!models.includes(current)) {
+      setModelByThread((prev) => ({ ...prev, [selectedThreadId]: null }));
+    }
+  }, [availableModelsByRepo, modelByThread, selectedRepoId, selectedThreadId]);
+
+  const resolveInitialModel = useCallback(
+    (repoId: string) => {
+      const models = availableModelsByRepo[repoId];
+      if (!models || models.length === 0) return DEFAULT_MODEL;
+      return models.includes(DEFAULT_MODEL) ? DEFAULT_MODEL : null;
+    },
+    [availableModelsByRepo],
+  );
+
+  const handleModelChange = useCallback(
+    (model: string | null) => {
+      if (!selectedThreadId) return;
+      setModelByThread((prev) => ({ ...prev, [selectedThreadId]: model }));
+    },
+    [selectedThreadId],
+  );
+
   const handleApprove = useCallback(
     (
       repoId: string,
@@ -611,6 +741,13 @@ export const useConversationState = (): UseAppStateResult => {
     const originalText = inputText;
     const text = originalText.trim();
     if (!selectedRepoId || !selectedThreadId || !text) return;
+    const modelsLoaded =
+      availableModels !== undefined && availableModels.length > 0;
+    if (!selectedModel && modelsLoaded) {
+      toast.error("Model is not set");
+      return;
+    }
+    const modelToSend = selectedModel ?? DEFAULT_MODEL;
     updateThreadStatus(selectedThreadId, (status) => ({
       ...status,
       processing: true,
@@ -630,9 +767,12 @@ export const useConversationState = (): UseAppStateResult => {
     ]);
     setInputText("");
     try {
-      const turn = await api.startTurn(selectedRepoId, selectedThreadId, [
-        { type: "text", text },
-      ]);
+      const turn = await api.startTurn(
+        selectedRepoId,
+        selectedThreadId,
+        [{ type: "text", text }],
+        { model: modelToSend },
+      );
       setActiveTurnByThread((prev) => ({
         ...prev,
         [selectedThreadId]: turn.turnId,
@@ -652,6 +792,8 @@ export const useConversationState = (): UseAppStateResult => {
     inputText,
     selectedRepoId,
     selectedThreadId,
+    selectedModel,
+    availableModels,
     updateThreadMessages,
     updateThreadStatus,
   ]);
@@ -661,12 +803,18 @@ export const useConversationState = (): UseAppStateResult => {
       const repoId = targetRepoId ?? selectedRepoId;
       if (!repoId) return;
       try {
-        const threadId = await api.createThread(repoId);
+        const model = resolveInitialModel(repoId);
+        const threadId = await api.createThread(repoId, model ?? undefined);
+        setModelByThread((prev) => ({
+          ...prev,
+          [threadId]: model ?? null,
+        }));
         const repo = repos.find((item) => item.repoId === repoId) ?? null;
         const now = new Date().toISOString();
         addOptimisticThread(repoId, {
           threadId,
           cwd: repo?.path,
+          preview: "New thread",
           createdAt: now,
           updatedAt: now,
         });
@@ -686,7 +834,13 @@ export const useConversationState = (): UseAppStateResult => {
         );
       }
     },
-    [addOptimisticThread, applyThreadList, repos, selectedRepoId],
+    [
+      addOptimisticThread,
+      applyThreadList,
+      repos,
+      resolveInitialModel,
+      selectedRepoId,
+    ],
   );
 
   const handleSelectThread = useCallback(
@@ -756,11 +910,14 @@ export const useConversationState = (): UseAppStateResult => {
     fileChanges,
     approvals,
     inputText,
+    selectedModel,
+    availableModels,
     selectRepo,
     setInputText,
     handleAddRepo,
     handleCreateThread,
     handleSelectThread,
+    handleModelChange,
     handleApprove,
     handleSend,
   };

@@ -76,12 +76,18 @@ export const api = {
     );
     return data.threads;
   },
-  async createThread(repoId: string): Promise<string> {
+  async listModels(repoId: string): Promise<unknown> {
+    return requestJson(`/api/repos/${repoId}/models`);
+  },
+  async createThread(repoId: string, model?: string): Promise<string> {
+    const options: RequestInit = { method: "POST" };
+    if (model) {
+      options.headers = jsonHeaders;
+      options.body = JSON.stringify({ model });
+    }
     const data = await requestJson<{ thread: { threadId: string } }>(
       `/api/repos/${repoId}/threads`,
-      {
-        method: "POST",
-      },
+      options,
     );
     return data.thread.threadId;
   },

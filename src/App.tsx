@@ -17,11 +17,14 @@ export default function App() {
     fileChanges,
     approvals,
     inputText,
+    selectedModel,
+    availableModels,
     selectRepo,
     setInputText,
     handleAddRepo,
     handleCreateThread,
     handleSelectThread,
+    handleModelChange,
     handleApprove,
     handleSend,
   } = useConversationState();
@@ -52,8 +55,11 @@ export default function App() {
           selectedThreadId={selectedThreadId}
           selectedRepoId={selectedRepoId}
           selectedRepoPath={selectedRepo?.path ?? null}
+          selectedModel={selectedModel}
+          availableModels={availableModels}
           onInputTextChange={(value) => setInputText(value)}
           onSend={handleSend}
+          onModelChange={handleModelChange}
           onApprove={handleApprove}
         />
       </div>

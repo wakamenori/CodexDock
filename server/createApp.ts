@@ -28,6 +28,16 @@ const parseJson = async (c: Context) => {
   }
 };
 
+const parseJsonOptional = async (c: Context) => {
+  const text = await c.req.text();
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw badRequest("Invalid JSON body");
+  }
+};
+
 const getTimeString = (
   record: Record<string, unknown> | undefined,
   key: string,
@@ -308,14 +318,33 @@ export const createApp = (options: CreateAppOptions) => {
     }
   });
 
+  app.get("/api/repos/:repoId/models", async (c) => {
+    const repoId = c.req.param("repoId");
+    await requireRepo(repoId);
+    try {
+      const session = await manager.getOrStart(repoId);
+      const result = await session.request("model/list");
+      return c.json({ result } as JsonObject);
+    } catch (error) {
+      throw appServerError(error);
+    }
+  });
+
   app.post("/api/repos/:repoId/threads", async (c) => {
     const repoId = c.req.param("repoId");
     const repo = await requireRepo(repoId);
     try {
+      const body = await parseJsonOptional(c);
+      if (body !== undefined && !isRecord(body)) {
+        throw badRequest("Invalid JSON body");
+      }
+      const model = getString(body, "model");
       const session = await manager.getOrStart(repoId);
-      const result = await session.request("thread/start", {
-        cwd: repo.path,
-      });
+      const params: JsonObject = { cwd: repo.path };
+      if (model) {
+        params.model = model;
+      }
+      const result = await session.request("thread/start", params);
       const threadId = extractThreadId(result);
       if (!threadId) {
         throw new Error("thread id missing");

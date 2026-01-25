@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../../api";
@@ -29,6 +30,7 @@ vi.mock("../../../api", () => {
       startSession: vi.fn(),
       stopSession: vi.fn(),
       listThreads: vi.fn(),
+      listModels: vi.fn(),
       createThread: vi.fn(),
       resumeThread: vi.fn(),
       startTurn: vi.fn(),
@@ -88,6 +90,7 @@ const setupHook = async () => {
   mockedApi.listRepos.mockResolvedValue([repo]);
   mockedApi.startSession.mockResolvedValue(undefined);
   mockedApi.listThreads.mockResolvedValue(threads);
+  mockedApi.listModels.mockResolvedValue(["gpt-5.2-codex"]);
   mockedApi.resumeThread.mockResolvedValue({});
   mockedApi.updateRepo.mockResolvedValue(repo);
 
@@ -116,6 +119,10 @@ describe("useConversationState handleSend", () => {
 
     await waitFor(() => {
       expect(hook.result.current.inputText).toBe(" hello ");
+    });
+
+    await act(async () => {
+      hook.result.current.handleModelChange("gpt-5.2-codex");
     });
 
     let resolveStart!: (value: { turnId: string; status: string }) => void;
@@ -147,6 +154,10 @@ describe("useConversationState handleSend", () => {
       hook.result.current.setInputText(" hello ");
     });
 
+    await act(async () => {
+      hook.result.current.handleModelChange("gpt-5.2-codex");
+    });
+
     mockedApi.startTurn.mockRejectedValue(new Error("boom"));
 
     await act(async () => {
@@ -154,6 +165,20 @@ describe("useConversationState handleSend", () => {
     });
 
     expect(hook.result.current.inputText).toBe(" hello ");
+  });
+
+  it("blocks send and shows toast when model is unset", async () => {
+    const hook = await setupHook();
+    await act(async () => {
+      hook.result.current.setInputText(" hello ");
+    });
+
+    await act(async () => {
+      await hook.result.current.handleSend();
+    });
+
+    expect(mockedApi.startTurn).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalled();
   });
 });
 

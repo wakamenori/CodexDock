@@ -13,8 +13,11 @@ type MainPanelProps = {
   inputText: string;
   selectedThreadId: string | null;
   selectedRepoId: string | null;
+  selectedModel: string | null;
+  availableModels: string[] | undefined;
   onInputTextChange: (value: string) => void;
   onSend: () => void | Promise<void>;
+  onModelChange: (model: string | null) => void;
   onApprove: (
     repoId: string,
     request: ApprovalRequest,
@@ -32,8 +35,11 @@ export function MainPanel({
   inputText,
   selectedThreadId,
   selectedRepoId,
+  selectedModel,
+  availableModels,
   onInputTextChange,
   onSend,
+  onModelChange,
   onApprove,
 }: MainPanelProps) {
   return (
@@ -75,8 +81,11 @@ export function MainPanel({
         inputText={inputText}
         selectedThreadId={selectedThreadId}
         running={running}
+        selectedModel={selectedModel}
+        availableModels={availableModels}
         onInputTextChange={onInputTextChange}
         onSend={onSend}
+        onModelChange={onModelChange}
       />
     </main>
   );
