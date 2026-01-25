@@ -22,12 +22,15 @@ import { createWsEventHandlers } from "../infra/wsHandlers";
 
 export type UseAppStateResult = {
   repos: Repo[];
+  repoGroups: {
+    repo: Repo;
+    threads: ThreadSummary[];
+    sessionStatus: SessionStatus;
+  }[];
   selectedRepoId: string | null;
   selectedRepo: Repo | null;
   newRepoName: string;
   newRepoPath: string;
-  sessionStatus: SessionStatus;
-  visibleThreads: ThreadSummary[];
   selectedThreadId: string | null;
   wsConnected: boolean;
   running: boolean;
@@ -43,7 +46,7 @@ export type UseAppStateResult = {
   setInputText: (value: string) => void;
   handleAddRepo: () => Promise<void>;
   handleCreateThread: () => Promise<void>;
-  handleSelectThread: (threadId: string) => Promise<void>;
+  handleSelectThread: (repoId: string, threadId: string) => Promise<void>;
   handleApprove: (
     repoId: string,
     request: ApprovalRequest,
@@ -86,6 +89,10 @@ export const useConversationState = (): UseAppStateResult => {
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedRepoRef = useRef<string | null>(null);
   const selectedThreadIdRef = useRef<string | null>(null);
+  const pendingThreadSelectionRef = useRef<{
+    repoId: string;
+    threadId: string;
+  } | null>(null);
 
   const selectedRepo = useMemo(
     () => repos.find((repo) => repo.repoId === selectedRepoId) ?? null,
@@ -94,12 +101,6 @@ export const useConversationState = (): UseAppStateResult => {
   const lastOpenedThreadId = selectedRepo?.lastOpenedThreadId ?? null;
   const normalizedRepoPath = normalizeRootPath(selectedRepo?.path);
 
-  const threads = selectedRepoId ? (threadsByRepo[selectedRepoId] ?? []) : [];
-  const visibleThreads = normalizedRepoPath
-    ? threads.filter(
-        (thread) => normalizeRootPath(thread.cwd) === normalizedRepoPath,
-      )
-    : threads;
   const messages = selectedThreadId
     ? (messagesByThread[selectedThreadId] ?? [])
     : [];
@@ -110,12 +111,28 @@ export const useConversationState = (): UseAppStateResult => {
   const approvals = selectedThreadId
     ? (approvalsByThread[selectedThreadId] ?? [])
     : [];
-  const sessionStatus = selectedRepoId
-    ? (sessionStatusByRepo[selectedRepoId] ?? "stopped")
-    : "stopped";
   const running = selectedThreadId
     ? Boolean(activeTurnByThread[selectedThreadId])
     : false;
+
+  const repoGroups = useMemo(
+    () =>
+      repos.map((repo) => {
+        const list = threadsByRepo[repo.repoId] ?? [];
+        const normalizedPath = normalizeRootPath(repo.path);
+        const threads = normalizedPath
+          ? list.filter(
+              (thread) => normalizeRootPath(thread.cwd) === normalizedPath,
+            )
+          : list;
+        return {
+          repo,
+          threads,
+          sessionStatus: sessionStatusByRepo[repo.repoId] ?? "stopped",
+        };
+      }),
+    [repos, sessionStatusByRepo, threadsByRepo],
+  );
 
   useEffect(() => {
     selectedThreadIdRef.current = selectedThreadId;
@@ -211,6 +228,27 @@ export const useConversationState = (): UseAppStateResult => {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const missing = repos.filter(
+      (repo) =>
+        repo.repoId !== selectedRepoId &&
+        !Object.prototype.hasOwnProperty.call(threadsByRepo, repo.repoId),
+    );
+    if (missing.length === 0) return;
+    void (async () => {
+      await Promise.all(
+        missing.map(async (repo) => {
+          try {
+            const list = await api.listThreads(repo.repoId);
+            setThreadsByRepo((prev) => ({ ...prev, [repo.repoId]: list }));
+          } catch (error) {
+            console.warn("Failed to load threads", repo.repoId, error);
+          }
+        }),
+      );
+    })();
+  }, [repos, selectedRepoId, threadsByRepo]);
 
   const sendWs = useCallback((message: WsOutboundMessage) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -308,7 +346,17 @@ export const useConversationState = (): UseAppStateResult => {
               (thread) => normalizeRootPath(thread.cwd) === normalizedRepoPath,
             )
           : list;
-        const preferred = lastOpenedThreadId ?? filtered[0]?.threadId ?? null;
+        const pendingSelection = pendingThreadSelectionRef.current;
+        const pendingThreadId =
+          pendingSelection && pendingSelection.repoId === selectedRepoId
+            ? list.find((thread) => thread.threadId === pendingSelection.threadId)
+                ?.threadId ?? null
+            : null;
+        if (pendingSelection && pendingSelection.repoId === selectedRepoId) {
+          pendingThreadSelectionRef.current = null;
+        }
+        const preferred =
+          pendingThreadId ?? lastOpenedThreadId ?? filtered[0]?.threadId ?? null;
         setSelectedThreadId(preferred);
         if (preferred) {
           const resumeResult = await api.resumeThread(
@@ -412,14 +460,20 @@ export const useConversationState = (): UseAppStateResult => {
   }, [selectedRepoId]);
 
   const handleSelectThread = useCallback(
-    async (threadId: string) => {
-      if (!selectedRepoId) return;
+    async (repoId: string, threadId: string) => {
+      if (!repoId) return;
+      if (repoId !== selectedRepoId) {
+        pendingThreadSelectionRef.current = { repoId, threadId };
+        setSelectedRepoId(repoId);
+        return;
+      }
+      pendingThreadSelectionRef.current = null;
       setSelectedThreadId(threadId);
       try {
-        const resumeResult = await api.resumeThread(selectedRepoId, threadId);
+        const resumeResult = await api.resumeThread(repoId, threadId);
         const resumeMessages = buildMessagesFromResume(threadId, resumeResult);
         setThreadMessages(threadId, resumeMessages);
-        await api.updateRepo(selectedRepoId, { lastOpenedThreadId: threadId });
+        await api.updateRepo(repoId, { lastOpenedThreadId: threadId });
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to resume thread",
@@ -445,17 +499,17 @@ export const useConversationState = (): UseAppStateResult => {
   }, [newRepoName, newRepoPath]);
 
   const selectRepo = useCallback((repoId: string | null) => {
+    pendingThreadSelectionRef.current = null;
     setSelectedRepoId(repoId);
   }, []);
 
   return {
     repos,
+    repoGroups,
     selectedRepoId,
     selectedRepo,
     newRepoName,
     newRepoPath,
-    sessionStatus,
-    visibleThreads,
     selectedThreadId,
     wsConnected,
     running,

@@ -5,13 +5,11 @@ import { useConversationState } from "./modules/conversation/ui/useConversationS
 
 export default function App() {
   const {
-    repos,
+    repoGroups,
     selectedRepoId,
     selectedRepo,
     newRepoName,
     newRepoPath,
-    sessionStatus,
-    visibleThreads,
     selectedThreadId,
     wsConnected,
     running,
@@ -37,16 +35,13 @@ export default function App() {
       <HeaderBar wsConnected={wsConnected} />
       <div className="flex flex-1 min-h-0 gap-4">
         <Sidebar
-          repos={repos}
+          repoGroups={repoGroups}
           selectedRepoId={selectedRepoId}
-          selectedRepo={selectedRepo}
           newRepoName={newRepoName}
           newRepoPath={newRepoPath}
-          sessionStatus={sessionStatus}
           running={running}
-          visibleThreads={visibleThreads}
           selectedThreadId={selectedThreadId}
-          onRepoChange={selectRepo}
+          onSelectRepo={selectRepo}
           onNewRepoNameChange={(value) => setNewRepoName(value)}
           onNewRepoPathChange={(value) => setNewRepoPath(value)}
           onAddRepo={handleAddRepo}
