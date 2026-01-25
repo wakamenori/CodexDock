@@ -85,14 +85,16 @@ class FakeWebSocket {
 
 const mockedApi = vi.mocked(api);
 
-const setupHook = async () => {
+const setupHook = async (threadsOverride?: ThreadSummary[]) => {
   const repo: Repo = {
     repoId: "repo-1",
     name: "repo",
     path: "/repo",
     lastOpenedThreadId: "thread-1",
   };
-  const threads: ThreadSummary[] = [{ threadId: "thread-1", cwd: "/repo" }];
+  const threads: ThreadSummary[] = threadsOverride ?? [
+    { threadId: "thread-1", cwd: "/repo" },
+  ];
 
   mockedApi.listRepos.mockResolvedValue([repo]);
   mockedApi.startSession.mockResolvedValue(undefined);
@@ -228,6 +230,34 @@ describe("useConversationState handleSend", () => {
     });
   });
 
+  it("optimistically updates preview for new thread", async () => {
+    const hook = await setupHook([
+      { threadId: "thread-1", cwd: "/repo", preview: "New thread" },
+    ]);
+    await act(async () => {
+      hook.result.current.setInputText("Hello world");
+    });
+
+    await act(async () => {
+      hook.result.current.handleModelChange("gpt-5.2-codex");
+    });
+
+    mockedApi.startTurn.mockResolvedValue({
+      turnId: "turn-1",
+      status: "running",
+    });
+
+    await act(async () => {
+      await hook.result.current.handleSend();
+    });
+
+    const threads = hook.result.current.repoGroups[0]?.threads ?? [];
+    const preview = threads.find(
+      (thread) => thread.threadId === "thread-1",
+    )?.preview;
+    expect(preview).toBe("Hello world");
+  });
+
   it("restores input when send fails", async () => {
     const hook = await setupHook();
     await act(async () => {
@@ -245,6 +275,31 @@ describe("useConversationState handleSend", () => {
     });
 
     expect(hook.result.current.inputText).toBe(" hello ");
+  });
+
+  it("rolls back preview when send fails for new thread", async () => {
+    const hook = await setupHook([
+      { threadId: "thread-1", cwd: "/repo", preview: "New thread" },
+    ]);
+    await act(async () => {
+      hook.result.current.setInputText("Hello world");
+    });
+
+    await act(async () => {
+      hook.result.current.handleModelChange("gpt-5.2-codex");
+    });
+
+    mockedApi.startTurn.mockRejectedValue(new Error("boom"));
+
+    await act(async () => {
+      await hook.result.current.handleSend();
+    });
+
+    const threads = hook.result.current.repoGroups[0]?.threads ?? [];
+    const preview = threads.find(
+      (thread) => thread.threadId === "thread-1",
+    )?.preview;
+    expect(preview).toBe("New thread");
   });
 
   it("blocks send and shows toast when model is unset", async () => {

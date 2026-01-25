@@ -75,6 +75,7 @@ const summarizeThreadsForLog = (threads: ThreadSummary[]) =>
   }));
 
 const DEFAULT_MODEL = "gpt-5.2-codex";
+const NEW_THREAD_PREVIEW = "New thread";
 
 const getArrayValue = (
   record: Record<string, unknown> | undefined,
@@ -275,6 +276,62 @@ export const useConversationState = (): UseAppStateResult => {
         }
         return { ...prev, [repoId]: [...list, thread] };
       });
+    },
+    [],
+  );
+
+  const updateThreadPreview = useCallback(
+    (repoId: string, threadId: string, preview: string) => {
+      if (!preview) return;
+      setThreadsByRepo((prev) => {
+        const list = prev[repoId] ?? [];
+        let updated = false;
+        const next = list.map((thread) => {
+          if (thread.threadId !== threadId) return thread;
+          if (thread.preview?.trim() !== NEW_THREAD_PREVIEW) return thread;
+          updated = true;
+          return { ...thread, preview };
+        });
+        if (!updated) return prev;
+        return { ...prev, [repoId]: next };
+      });
+      const optimisticRepo = optimisticThreadsRef.current[repoId];
+      const optimisticThread = optimisticRepo?.[threadId];
+      if (optimisticThread?.preview?.trim() === NEW_THREAD_PREVIEW) {
+        optimisticRepo[threadId] = { ...optimisticThread, preview };
+      }
+    },
+    [],
+  );
+
+  const rollbackThreadPreview = useCallback(
+    (
+      repoId: string,
+      threadId: string,
+      optimisticPreview: string,
+      previousPreview: string,
+    ) => {
+      if (!previousPreview) return;
+      setThreadsByRepo((prev) => {
+        const list = prev[repoId] ?? [];
+        let updated = false;
+        const next = list.map((thread) => {
+          if (thread.threadId !== threadId) return thread;
+          if (thread.preview !== optimisticPreview) return thread;
+          updated = true;
+          return { ...thread, preview: previousPreview };
+        });
+        if (!updated) return prev;
+        return { ...prev, [repoId]: next };
+      });
+      const optimisticRepo = optimisticThreadsRef.current[repoId];
+      const optimisticThread = optimisticRepo?.[threadId];
+      if (optimisticThread?.preview === optimisticPreview) {
+        optimisticRepo[threadId] = {
+          ...optimisticThread,
+          preview: previousPreview,
+        };
+      }
     },
     [],
   );
@@ -774,6 +831,14 @@ export const useConversationState = (): UseAppStateResult => {
       },
     ]);
     setInputText("");
+    const currentPreview =
+      threadsByRepo[selectedRepoId]?.find(
+        (thread) => thread.threadId === selectedThreadId,
+      )?.preview ?? null;
+    const shouldUpdatePreview = currentPreview?.trim() === NEW_THREAD_PREVIEW;
+    if (shouldUpdatePreview) {
+      updateThreadPreview(selectedRepoId, selectedThreadId, text);
+    }
     try {
       const turn = await api.startTurn(
         selectedRepoId,
@@ -793,6 +858,14 @@ export const useConversationState = (): UseAppStateResult => {
         ...status,
         processing: false,
       }));
+      if (shouldUpdatePreview && currentPreview) {
+        rollbackThreadPreview(
+          selectedRepoId,
+          selectedThreadId,
+          text,
+          currentPreview,
+        );
+      }
       setInputText(originalText);
       toast.error(error instanceof Error ? error.message : "Turn failed");
     }
@@ -802,7 +875,10 @@ export const useConversationState = (): UseAppStateResult => {
     selectedThreadId,
     selectedModel,
     availableModels,
+    threadsByRepo,
     updateThreadMessages,
+    updateThreadPreview,
+    rollbackThreadPreview,
     updateThreadStatus,
   ]);
 
@@ -822,7 +898,7 @@ export const useConversationState = (): UseAppStateResult => {
         addOptimisticThread(repoId, {
           threadId,
           cwd: repo?.path,
-          preview: "New thread",
+          preview: NEW_THREAD_PREVIEW,
           createdAt: now,
           updatedAt: now,
         });
