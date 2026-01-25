@@ -48,6 +48,7 @@ class FakeWebSocket {
   static OPEN = 1;
   static CLOSING = 2;
   static CLOSED = 3;
+  static instances: FakeWebSocket[] = [];
   readyState = FakeWebSocket.OPEN;
   url: string;
   private listeners: Record<string, Array<(event?: unknown) => void>> = {};
@@ -56,11 +57,20 @@ class FakeWebSocket {
 
   constructor(url: string) {
     this.url = url;
+    FakeWebSocket.instances.push(this);
   }
 
   addEventListener(type: string, listener: (event?: unknown) => void) {
     this.listeners[type] ??= [];
     this.listeners[type].push(listener);
+  }
+
+  emitMessage(data: unknown) {
+    const listeners = this.listeners.message ?? [];
+    const event = { data: JSON.stringify(data) };
+    for (const listener of listeners) {
+      listener(event);
+    }
   }
 }
 
@@ -91,6 +101,7 @@ const setupHook = async () => {
 describe("useConversationState handleSend", () => {
   beforeEach(() => {
     globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+    FakeWebSocket.instances = [];
   });
 
   afterEach(() => {
@@ -143,5 +154,71 @@ describe("useConversationState handleSend", () => {
     });
 
     expect(hook.result.current.inputText).toBe(" hello ");
+  });
+});
+
+describe("useConversationState handleCreateThread", () => {
+  beforeEach(() => {
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+    FakeWebSocket.instances = [];
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("keeps optimistic thread when listThreads omits it", async () => {
+    const hook = await setupHook();
+    mockedApi.createThread.mockResolvedValue("thread-2");
+    mockedApi.listThreads.mockResolvedValue([
+      { threadId: "thread-1", cwd: "/repo" },
+    ]);
+
+    await act(async () => {
+      await hook.result.current.handleCreateThread();
+    });
+
+    await waitFor(() => {
+      const threadIds =
+        hook.result.current.repoGroups[0]?.threads.map(
+          (thread) => thread.threadId,
+        ) ?? [];
+      expect(threadIds).toContain("thread-2");
+    });
+  });
+
+  it("keeps optimistic thread when thread_list_updated omits it", async () => {
+    const hook = await setupHook();
+    mockedApi.createThread.mockResolvedValue("thread-2");
+    mockedApi.listThreads.mockResolvedValue([
+      { threadId: "thread-1", cwd: "/repo" },
+    ]);
+
+    await act(async () => {
+      await hook.result.current.handleCreateThread();
+    });
+
+    const ws = FakeWebSocket.instances[0];
+    if (!ws) {
+      throw new Error("WebSocket instance not found");
+    }
+
+    act(() => {
+      ws.emitMessage({
+        type: "thread_list_updated",
+        payload: {
+          repoId: "repo-1",
+          threads: [{ threadId: "thread-1", cwd: "/repo" }],
+        },
+      });
+    });
+
+    await waitFor(() => {
+      const threadIds =
+        hook.result.current.repoGroups[0]?.threads.map(
+          (thread) => thread.threadId,
+        ) ?? [];
+      expect(threadIds).toContain("thread-2");
+    });
   });
 });

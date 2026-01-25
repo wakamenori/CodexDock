@@ -105,6 +105,9 @@ export const useConversationState = (): UseAppStateResult => {
     repoId: string;
     threadId: string;
   } | null>(null);
+  const optimisticThreadsRef = useRef<
+    Record<string, Record<string, ThreadSummary>>
+  >({});
 
   const selectedRepo = useMemo(
     () => repos.find((repo) => repo.repoId === selectedRepoId) ?? null,
@@ -179,6 +182,60 @@ export const useConversationState = (): UseAppStateResult => {
     }
     return statusMap;
   }, [approvalsByThread, threadStatusByThread]);
+
+  const addOptimisticThread = useCallback(
+    (repoId: string, thread: ThreadSummary) => {
+      const repoThreads = optimisticThreadsRef.current[repoId] ?? {};
+      optimisticThreadsRef.current[repoId] = {
+        ...repoThreads,
+        [thread.threadId]: thread,
+      };
+      setThreadsByRepo((prev) => {
+        const list = prev[repoId] ?? [];
+        if (list.some((item) => item.threadId === thread.threadId)) {
+          return prev;
+        }
+        return { ...prev, [repoId]: [...list, thread] };
+      });
+    },
+    [],
+  );
+
+  const mergeOptimisticThreads = useCallback(
+    (repoId: string, threads: ThreadSummary[]) => {
+      const optimistic = optimisticThreadsRef.current[repoId];
+      if (!optimistic || Object.keys(optimistic).length === 0) {
+        return threads;
+      }
+      const known = new Set(threads.map((thread) => thread.threadId));
+      const merged = [...threads];
+      for (const thread of Object.values(optimistic)) {
+        if (!known.has(thread.threadId)) {
+          merged.push(thread);
+        }
+      }
+      return merged;
+    },
+    [],
+  );
+
+  const applyThreadList = useCallback(
+    (repoId: string, threads: ThreadSummary[]) => {
+      const optimistic = optimisticThreadsRef.current[repoId];
+      if (optimistic) {
+        for (const thread of threads) {
+          delete optimistic[thread.threadId];
+        }
+        if (Object.keys(optimistic).length === 0) {
+          delete optimisticThreadsRef.current[repoId];
+        }
+      }
+      const merged = mergeOptimisticThreads(repoId, threads);
+      setThreadsByRepo((prev) => ({ ...prev, [repoId]: merged }));
+      return merged;
+    },
+    [mergeOptimisticThreads],
+  );
 
   useEffect(() => {
     selectedThreadIdRef.current = selectedThreadId;
@@ -315,14 +372,14 @@ export const useConversationState = (): UseAppStateResult => {
         missing.map(async (repo) => {
           try {
             const list = await api.listThreads(repo.repoId);
-            setThreadsByRepo((prev) => ({ ...prev, [repo.repoId]: list }));
+            applyThreadList(repo.repoId, list);
           } catch (error) {
             console.warn("Failed to load threads", repo.repoId, error);
           }
         }),
       );
     })();
-  }, [repos, selectedRepoId, threadsByRepo]);
+  }, [applyThreadList, repos, selectedRepoId, threadsByRepo]);
 
   const sendWs = useCallback((message: WsOutboundMessage) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -348,10 +405,7 @@ export const useConversationState = (): UseAppStateResult => {
             threadCount: message.payload.threads.length,
             threads: summarizeThreadsForLog(message.payload.threads),
           });
-          setThreadsByRepo((prev) => ({
-            ...prev,
-            [message.payload.repoId]: message.payload.threads,
-          }));
+          applyThreadList(message.payload.repoId, message.payload.threads);
           break;
         case "app_server_notification":
           wsHandlers.handleAppServerNotification(
@@ -369,7 +423,7 @@ export const useConversationState = (): UseAppStateResult => {
           break;
       }
     },
-    [wsHandlers],
+    [applyThreadList, wsHandlers],
   );
 
   useEffect(() => {
@@ -424,16 +478,16 @@ export const useConversationState = (): UseAppStateResult => {
           threadCount: list.length,
           threads: summarizeThreadsForLog(list),
         });
-        setThreadsByRepo((prev) => ({ ...prev, [selectedRepoId]: list }));
+        const merged = applyThreadList(selectedRepoId, list);
         const filtered = normalizedRepoPath
-          ? list.filter(
+          ? merged.filter(
               (thread) => normalizeRootPath(thread.cwd) === normalizedRepoPath,
             )
-          : list;
+          : merged;
         const pendingSelection = pendingThreadSelectionRef.current;
         const pendingThreadId =
           pendingSelection && pendingSelection.repoId === selectedRepoId
-            ? (list.find(
+            ? (merged.find(
                 (thread) => thread.threadId === pendingSelection.threadId,
               )?.threadId ?? null)
             : null;
@@ -472,6 +526,7 @@ export const useConversationState = (): UseAppStateResult => {
       }
     })();
   }, [
+    applyThreadList,
     lastOpenedThreadId,
     normalizedRepoPath,
     selectedRepoId,
@@ -607,12 +662,20 @@ export const useConversationState = (): UseAppStateResult => {
       if (!repoId) return;
       try {
         const threadId = await api.createThread(repoId);
+        const repo = repos.find((item) => item.repoId === repoId) ?? null;
+        const now = new Date().toISOString();
+        addOptimisticThread(repoId, {
+          threadId,
+          cwd: repo?.path,
+          createdAt: now,
+          updatedAt: now,
+        });
         if (repoId === selectedRepoId) {
           await api.resumeThread(repoId, threadId);
           setSelectedThreadId(threadId);
           await api.updateRepo(repoId, { lastOpenedThreadId: threadId });
           const list = await api.listThreads(repoId);
-          setThreadsByRepo((prev) => ({ ...prev, [repoId]: list }));
+          applyThreadList(repoId, list);
           return;
         }
         pendingThreadSelectionRef.current = { repoId, threadId };
@@ -623,7 +686,7 @@ export const useConversationState = (): UseAppStateResult => {
         );
       }
     },
-    [selectedRepoId],
+    [addOptimisticThread, applyThreadList, repos, selectedRepoId],
   );
 
   const handleSelectThread = useCallback(
