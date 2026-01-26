@@ -58,22 +58,14 @@ export function MainPanel({
   return (
     <main className="flex-1 min-h-0 rounded-2xl border border-ink-700 bg-ink-900/60 shadow-panel flex flex-col">
       <div className="flex items-center justify-between border-b border-ink-700 px-6 py-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-ink-300">
-            Active Repo
-          </p>
-          <p className="text-lg font-semibold text-ink-100">
-            {selectedRepoName ?? "Select a repo"}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-ink-300">State</p>
-          <p
-            className={`text-sm font-semibold ${running ? "text-neon-500" : "text-ink-300"}`}
-          >
-            {running ? "running" : "idle"}
-          </p>
-        </div>
+        <p className="text-lg font-semibold text-ink-100">
+          {selectedRepoName ?? "Select a repo"}
+        </p>
+        <p
+          className={`text-sm font-semibold ${running ? "text-neon-500" : "text-ink-300"}`}
+        >
+          {running ? "running" : "idle"}
+        </p>
       </div>
 
       <ChatHistory

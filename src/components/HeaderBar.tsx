@@ -4,15 +4,15 @@ type HeaderBarProps = {
 
 export function HeaderBar({ wsConnected }: HeaderBarProps) {
   return (
-    <header className="flex items-center justify-between rounded-2xl border border-ink-700 bg-ink-800/70 px-6 py-4 shadow-panel">
-      <div>
-        <p className="text-sm uppercase tracking-[0.3em] text-neon-300">
+    <header className="flex items-center justify-between rounded-2xl border border-ink-700 bg-ink-800/70 px-6 pb-3 pt-3 shadow-panel">
+      <h1 className="flex flex-wrap items-baseline gap-3 text-ink-100">
+        <span className="text-xs uppercase tracking-[0.3em] text-neon-300">
           CodexDock
-        </p>
-        <h1 className="text-2xl font-semibold text-ink-100">
+        </span>
+        <span className="text-lg font-semibold">
           Local Web Assistant Console
-        </h1>
-      </div>
+        </span>
+      </h1>
       <div className="text-right">
         <p className="text-xs text-ink-300">WebSocket</p>
         <p
