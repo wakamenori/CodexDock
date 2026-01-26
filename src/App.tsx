@@ -13,6 +13,7 @@ export default function App() {
     selectedThreadId,
     wsConnected,
     running,
+    activeTurnId,
     messages,
     fileChanges,
     approvals,
@@ -27,6 +28,7 @@ export default function App() {
     handleModelChange,
     handleApprove,
     handleSend,
+    handleStop,
   } = useConversationState();
 
   return (
@@ -48,6 +50,7 @@ export default function App() {
         <MainPanel
           selectedRepoName={selectedRepo?.name ?? null}
           running={running}
+          activeTurnId={activeTurnId}
           messages={messages}
           fileChanges={fileChanges}
           approvals={approvals}
@@ -59,6 +62,7 @@ export default function App() {
           availableModels={availableModels}
           onInputTextChange={(value) => setInputText(value)}
           onSend={handleSend}
+          onStop={handleStop}
           onModelChange={handleModelChange}
           onApprove={handleApprove}
         />

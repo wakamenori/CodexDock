@@ -1,7 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind directives */
 @tailwind base;
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind directives */
 @tailwind components;
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind directives */
 @tailwind utilities;
 
 :root {
@@ -21,11 +24,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(
-      1200px 500px at 20% 0%,
-      var(--accent-blue),
-      transparent 60%
-    ),
+  background:
+    radial-gradient(1200px 500px at 20% 0%, var(--accent-blue), transparent 60%),
     radial-gradient(
       800px 600px at 90% 10%,
       var(--accent-purple),
@@ -35,7 +35,8 @@ body {
       900px 600px at 50% 120%,
       var(--accent-cyan),
       transparent 70%
-    ), linear-gradient(180deg, var(--bg-top), var(--bg-mid));
+    ),
+    linear-gradient(180deg, var(--bg-top), var(--bg-mid));
   color: #c0caf5;
   font-family: "Space Grotesk", system-ui, sans-serif;
 }
@@ -95,8 +96,9 @@ body {
 }
 
 .markdown code {
-  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   background: rgba(36, 40, 59, 0.7);
   padding: 0.1rem 0.35rem;
   border-radius: 0.35rem;

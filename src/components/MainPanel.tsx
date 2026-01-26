@@ -7,6 +7,7 @@ type MainPanelProps = {
   selectedRepoName: string | null;
   selectedRepoPath: string | null;
   running: boolean;
+  activeTurnId: string | null;
   messages: ChatMessage[];
   fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
@@ -17,6 +18,7 @@ type MainPanelProps = {
   availableModels: string[] | undefined;
   onInputTextChange: (value: string) => void;
   onSend: () => void | Promise<void>;
+  onStop: () => void | Promise<void>;
   onModelChange: (model: string | null) => void;
   onApprove: (
     repoId: string,
@@ -29,6 +31,7 @@ export function MainPanel({
   selectedRepoName,
   selectedRepoPath,
   running,
+  activeTurnId,
   messages,
   fileChanges,
   approvals,
@@ -39,6 +42,7 @@ export function MainPanel({
   availableModels,
   onInputTextChange,
   onSend,
+  onStop,
   onModelChange,
   onApprove,
 }: MainPanelProps) {
@@ -81,10 +85,12 @@ export function MainPanel({
         inputText={inputText}
         selectedThreadId={selectedThreadId}
         running={running}
+        activeTurnId={activeTurnId}
         selectedModel={selectedModel}
         availableModels={availableModels}
         onInputTextChange={onInputTextChange}
         onSend={onSend}
+        onStop={onStop}
         onModelChange={onModelChange}
       />
     </main>

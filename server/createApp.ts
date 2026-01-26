@@ -13,8 +13,8 @@ import {
   isRecord,
 } from "./guards.js";
 import { httpLogger } from "./logger.js";
-import { pickRepoPath } from "./pathPicker.js";
 import type { RepoPathPicker } from "./pathPicker.js";
+import { pickRepoPath } from "./pathPicker.js";
 import type { RepoRegistry } from "./repoRegistry.js";
 import type { ThreadListRefresher } from "./threadListRefresher.js";
 import type { TurnStateStore } from "./turnState.js";
@@ -199,7 +199,7 @@ export const createApp = (options: CreateAppOptions) => {
     if (!isRecord(body)) {
       throw badRequest("model is required", { field: "model" });
     }
-    const hasModel = Object.prototype.hasOwnProperty.call(body, "model");
+    const hasModel = Object.hasOwn(body, "model");
     if (!hasModel) {
       throw badRequest("model is required", { field: "model" });
     }

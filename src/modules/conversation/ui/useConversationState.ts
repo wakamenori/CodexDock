@@ -45,6 +45,7 @@ export type UseAppStateResult = {
   selectedThreadId: string | null;
   wsConnected: boolean;
   running: boolean;
+  activeTurnId: string | null;
   messages: ChatMessage[];
   diffs: DiffEntry[];
   fileChanges: Record<string, FileChangeEntry>;
@@ -64,6 +65,7 @@ export type UseAppStateResult = {
     decision: "accept" | "decline",
   ) => void;
   handleSend: () => Promise<void>;
+  handleStop: () => Promise<void>;
 };
 
 const summarizeThreadsForLog = (threads: ThreadSummary[]) =>
@@ -178,7 +180,9 @@ export const useConversationState = (): UseAppStateResult => {
   const [approvalsByThread, setApprovalsByThread] = useState<
     Record<string, ApprovalRequest[]>
   >({});
-  const [, setActiveTurnByThread] = useState<Record<string, string | null>>({});
+  const [activeTurnByThread, setActiveTurnByThread] = useState<
+    Record<string, string | null>
+  >({});
   const [threadStatusByThread, setThreadStatusByThread] = useState<
     Record<string, ThreadStatusFlags>
   >({});
@@ -218,6 +222,9 @@ export const useConversationState = (): UseAppStateResult => {
   const approvals = selectedThreadId
     ? (approvalsByThread[selectedThreadId] ?? [])
     : [];
+  const activeTurnId = selectedThreadId
+    ? (activeTurnByThread[selectedThreadId] ?? null)
+    : null;
   const running = selectedThreadId
     ? Boolean(threadStatusByThread[selectedThreadId]?.processing)
     : false;
@@ -541,7 +548,7 @@ export const useConversationState = (): UseAppStateResult => {
     const missing = repos.filter(
       (repo) =>
         repo.repoId !== selectedRepoId &&
-        !Object.prototype.hasOwnProperty.call(threadsByRepo, repo.repoId),
+        !Object.hasOwn(threadsByRepo, repo.repoId),
     );
     if (missing.length === 0) return;
     void (async () => {
@@ -911,6 +918,17 @@ export const useConversationState = (): UseAppStateResult => {
     updateThreadStatus,
   ]);
 
+  const handleStop = useCallback(async () => {
+    if (!selectedRepoId || !selectedThreadId) return;
+    const turnId = activeTurnByThread[selectedThreadId];
+    if (!turnId) return;
+    try {
+      await api.cancelTurn(selectedRepoId, turnId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Cancel failed");
+    }
+  }, [activeTurnByThread, selectedRepoId, selectedThreadId]);
+
   const handleCreateThread = useCallback(
     async (targetRepoId?: string | null) => {
       const repoId = targetRepoId ?? selectedRepoId;
@@ -1031,6 +1049,7 @@ export const useConversationState = (): UseAppStateResult => {
     selectedThreadId,
     wsConnected,
     running,
+    activeTurnId,
     messages,
     diffs,
     fileChanges,
@@ -1046,5 +1065,6 @@ export const useConversationState = (): UseAppStateResult => {
     handleModelChange,
     handleApprove,
     handleSend,
+    handleStop,
   };
 };

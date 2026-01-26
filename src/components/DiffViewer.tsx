@@ -36,7 +36,9 @@ export function DiffViewer({ diffText }: DiffViewerProps) {
             <span className="text-right text-ink-500">
               {displayNumber ?? ""}
             </span>
-            <span className="whitespace-pre">{line.text}</span>
+            <span className="min-w-0 whitespace-pre-wrap break-words">
+              {line.text}
+            </span>
           </div>
         );
       })}

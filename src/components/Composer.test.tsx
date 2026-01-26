@@ -10,10 +10,12 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
     inputText: "hello",
     selectedThreadId: "thread-1",
     running: false,
+    activeTurnId: null,
     selectedModel: null,
     availableModels: [],
     onInputTextChange: vi.fn(),
     onSend: vi.fn(),
+    onStop: vi.fn(),
     onModelChange: vi.fn(),
     ...overrides,
   };
@@ -44,5 +46,13 @@ describe("Composer", () => {
       isComposing: true,
     });
     expect(props.onSend).not.toHaveBeenCalled();
+  });
+
+  it("shows stop button only while running", () => {
+    setup({ running: false });
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+
+    setup({ running: true, activeTurnId: "turn-1" });
+    expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
   });
 });

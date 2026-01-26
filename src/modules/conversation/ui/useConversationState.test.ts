@@ -381,6 +381,43 @@ describe("useConversationState handleSend", () => {
   });
 });
 
+describe("useConversationState handleStop", () => {
+  beforeEach(() => {
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+    FakeWebSocket.instances = [];
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("cancels the active turn", async () => {
+    const hook = await setupHook();
+    mockedApi.startTurn.mockResolvedValue({
+      turnId: "turn-1",
+      status: "running",
+    });
+
+    await act(async () => {
+      hook.result.current.setInputText("hello");
+    });
+
+    await act(async () => {
+      await hook.result.current.handleSend();
+    });
+
+    await waitFor(() => {
+      expect(hook.result.current.activeTurnId).toBe("turn-1");
+    });
+
+    await act(async () => {
+      await hook.result.current.handleStop();
+    });
+
+    expect(mockedApi.cancelTurn).toHaveBeenCalledWith("repo-1", "turn-1");
+  });
+});
+
 describe("useConversationState handleCreateThread", () => {
   beforeEach(() => {
     globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;

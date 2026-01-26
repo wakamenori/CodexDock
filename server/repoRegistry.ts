@@ -12,7 +12,7 @@ import path from "node:path";
 import type { Logger } from "pino";
 import { badRequest, conflict, notFound, unprocessable } from "./errors.js";
 import type { AppSettings, RepoEntry } from "./types.js";
-import { Mutex, hashPath } from "./utils.js";
+import { hashPath, Mutex } from "./utils.js";
 
 type RegistryState = {
   repos: RepoEntry[];
@@ -125,7 +125,7 @@ export class RepoRegistry {
     return this.mutex.runExclusive(async () => {
       const state = await this.load();
       const nextSettings: AppSettings = { ...state.settings };
-      if (Object.prototype.hasOwnProperty.call(patch, "model")) {
+      if (Object.hasOwn(patch, "model")) {
         nextSettings.model = patch.model ?? null;
       }
       const next = { ...state, settings: nextSettings };

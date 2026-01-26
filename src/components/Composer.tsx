@@ -2,10 +2,12 @@ type ComposerProps = {
   inputText: string;
   selectedThreadId: string | null;
   running: boolean;
+  activeTurnId: string | null;
   selectedModel: string | null;
   availableModels: string[] | undefined;
   onInputTextChange: (value: string) => void;
   onSend: () => void | Promise<void>;
+  onStop: () => void | Promise<void>;
   onModelChange: (model: string | null) => void;
 };
 
@@ -13,10 +15,12 @@ export function Composer({
   inputText,
   selectedThreadId,
   running,
+  activeTurnId,
   selectedModel,
   availableModels,
   onInputTextChange,
   onSend,
+  onStop,
   onModelChange,
 }: ComposerProps) {
   const normalizedModel = selectedModel ?? "";
@@ -72,6 +76,16 @@ export function Composer({
                 ))}
               </select>
             </label>
+            {running && (
+              <button
+                className="rounded-md border border-ink-600 px-3 py-2 text-xs font-semibold text-ink-100 disabled:opacity-50"
+                onClick={onStop}
+                disabled={!activeTurnId}
+                type="button"
+              >
+                Stop
+              </button>
+            )}
             <button
               className="rounded-md bg-neon-500/90 px-4 py-2 text-xs font-semibold text-ink-900 disabled:opacity-50"
               onClick={onSend}
