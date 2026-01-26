@@ -11,6 +11,7 @@
 - `tests/`: テスト（Vitest）
 - `Docs/`: 仕様/ドキュメント
   - `Docs/codex-app-server-official-doc.md`: `codex app-server` の公式ドキュメント
+  - `../../openai/codex/codex-rs/app-server`: `codex app-server` の実装リファレンス（Docsは仕様、実装はここを参照）
 - `data/`: 実行時データ（`data/repos.json` など）
 - Avoid: `dist/`, `node_modules/`, `data/`
 
