@@ -149,7 +149,7 @@ export function Sidebar({
                         key={thread.threadId}
                         className={`flex items-center gap-2 rounded-md px-2 py-1 text-left text-xs transition ${
                           isThreadSelected
-                            ? "bg-ink-700/70 text-ink-100"
+                            ? "bg-neon-500/10 text-ink-50 shadow-[inset_0_0_0_1px_rgba(125,207,255,0.45)]"
                             : "text-ink-200 hover:bg-ink-800/60"
                         }`}
                         onClick={() =>
