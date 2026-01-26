@@ -121,6 +121,8 @@ describe("HTTP API", () => {
       `/api/repos/${repoId}/turns/turn_1/cancel`,
       {
         method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({ threadId: "thr_2" }),
       },
     );
     expect(cancelRes.status).toBe(200);

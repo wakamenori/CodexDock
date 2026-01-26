@@ -922,7 +922,7 @@ export const useConversationState = (): UseAppStateResult => {
     const turnId = activeTurnByThread[selectedThreadId];
     if (!turnId) return;
     try {
-      await api.cancelTurn(selectedRepoId, turnId);
+      await api.cancelTurn(selectedRepoId, turnId, selectedThreadId);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Cancel failed");
     }

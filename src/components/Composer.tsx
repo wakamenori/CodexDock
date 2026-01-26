@@ -77,16 +77,14 @@ export function Composer({
                 ))}
               </select>
             </label>
-            {running && (
-              <button
-                className="rounded-md border border-ink-600 px-3 py-2 text-xs font-semibold text-ink-100 disabled:opacity-50"
-                onClick={onStop}
-                disabled={!activeTurnId}
-                type="button"
-              >
-                Stop
-              </button>
-            )}
+            <button
+              className="rounded-md border border-ink-600 px-3 py-2 text-xs font-semibold text-ink-100 disabled:opacity-50"
+              onClick={onStop}
+              disabled={!running || !activeTurnId}
+              type="button"
+            >
+              Stop
+            </button>
             <button
               className="rounded-md bg-neon-500/90 px-4 py-2 text-xs font-semibold text-ink-900 disabled:opacity-50"
               onClick={onSend}

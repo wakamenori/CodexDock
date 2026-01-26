@@ -414,7 +414,11 @@ describe("useConversationState handleStop", () => {
       await hook.result.current.handleStop();
     });
 
-    expect(mockedApi.cancelTurn).toHaveBeenCalledWith("repo-1", "turn-1");
+    expect(mockedApi.cancelTurn).toHaveBeenCalledWith(
+      "repo-1",
+      "turn-1",
+      "thread-1",
+    );
   });
 });
 

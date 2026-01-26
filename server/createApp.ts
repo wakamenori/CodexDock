@@ -448,8 +448,16 @@ export const createApp = (options: CreateAppOptions) => {
       return c.json({ turn: { turnId, status: "already_finished" } });
     }
     try {
+      const body = await parseJsonOptional(c);
+      if (!isRecord(body)) {
+        throw badRequest("threadId is required", { field: "threadId" });
+      }
+      const threadId = getString(body, "threadId");
+      if (!threadId) {
+        throw badRequest("threadId is required", { field: "threadId" });
+      }
       const session = await manager.getOrStart(repoId);
-      await session.request("turn/interrupt", { turnId });
+      await session.request("turn/interrupt", { threadId, turnId });
       return c.json({ turn: { turnId, status: "interrupt_requested" } });
     } catch (error) {
       throw appServerError(error);

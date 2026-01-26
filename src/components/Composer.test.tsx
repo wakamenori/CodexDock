@@ -53,11 +53,14 @@ describe("Composer", () => {
     expect(props.onSend).not.toHaveBeenCalled();
   });
 
-  it("shows stop button only while running", () => {
+  it("shows stop button and disables it when not running", () => {
     setup({ running: false });
-    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+    const stopWhenIdle = screen.getByRole("button", { name: "Stop" });
+    expect((stopWhenIdle as HTMLButtonElement).disabled).toBe(true);
 
+    cleanup();
     setup({ running: true, activeTurnId: "turn-1" });
-    expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
+    const stopWhenRunning = screen.getByRole("button", { name: "Stop" });
+    expect((stopWhenRunning as HTMLButtonElement).disabled).toBe(false);
   });
 });

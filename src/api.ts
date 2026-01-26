@@ -132,9 +132,15 @@ export const api = {
     });
     return data.turn;
   },
-  async cancelTurn(repoId: string, turnId: string): Promise<void> {
+  async cancelTurn(
+    repoId: string,
+    turnId: string,
+    threadId: string,
+  ): Promise<void> {
     await requestJson(`/api/repos/${repoId}/turns/${turnId}/cancel`, {
       method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify({ threadId }),
     });
   },
 };

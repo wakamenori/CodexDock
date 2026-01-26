@@ -117,6 +117,8 @@ describe("HTTP API edge cases", () => {
       `/api/repos/${repo.repoId}/turns/turn_9/cancel`,
       {
         method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({ threadId: "thread-1" }),
       },
     );
 
