@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 // @vitest-environment jsdom
 import type { ComponentProps } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Composer } from "./Composer";
 
@@ -25,6 +25,8 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
 };
 
 describe("Composer", () => {
+  afterEach(() => cleanup());
+
   it("sends only on Ctrl+Enter", () => {
     const props = setup();
     const input = screen.getByRole("textbox");
