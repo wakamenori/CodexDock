@@ -1,4 +1,9 @@
-import type { ApprovalRequest, ChatMessage, FileChangeEntry } from "../types";
+import type {
+  ApprovalRequest,
+  ChatMessage,
+  FileChangeEntry,
+  PermissionMode,
+} from "../types";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { ChatHistory } from "./ChatHistory";
 import { Composer } from "./Composer";
@@ -16,10 +21,12 @@ type MainPanelProps = {
   selectedRepoId: string | null;
   selectedModel: string | null;
   availableModels: string[] | undefined;
+  permissionMode: PermissionMode;
   onInputTextChange: (value: string) => void;
   onSend: () => void | Promise<void>;
   onStop: () => void | Promise<void>;
   onModelChange: (model: string | null) => void;
+  onPermissionModeChange: (mode: PermissionMode) => void;
   onApprove: (
     repoId: string,
     request: ApprovalRequest,
@@ -40,10 +47,12 @@ export function MainPanel({
   selectedRepoId,
   selectedModel,
   availableModels,
+  permissionMode,
   onInputTextChange,
   onSend,
   onStop,
   onModelChange,
+  onPermissionModeChange,
   onApprove,
 }: MainPanelProps) {
   return (
@@ -88,10 +97,12 @@ export function MainPanel({
         activeTurnId={activeTurnId}
         selectedModel={selectedModel}
         availableModels={availableModels}
+        permissionMode={permissionMode}
         onInputTextChange={onInputTextChange}
         onSend={onSend}
         onStop={onStop}
         onModelChange={onModelChange}
+        onPermissionModeChange={onPermissionModeChange}
       />
     </main>
   );

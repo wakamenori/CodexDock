@@ -1,4 +1,9 @@
-import type { Repo, ThreadSummary } from "./types";
+import type {
+  PermissionMode,
+  Repo,
+  ThreadSummary,
+  TurnStartOptions,
+} from "./types";
 
 const jsonHeaders = {
   "Content-Type": "application/json",
@@ -85,6 +90,11 @@ export const api = {
   }> {
     return requestJson("/api/settings/model");
   },
+  async getPermissionModeSettings(): Promise<{
+    defaultMode: PermissionMode | null;
+  }> {
+    return requestJson("/api/settings/permission-mode");
+  },
   async updateModelSetting(model: string | null): Promise<string | null> {
     const data = await requestJson<{ storedModel: string | null }>(
       "/api/settings/model",
@@ -117,11 +127,7 @@ export const api = {
     repoId: string,
     threadId: string,
     input: { type: string; text: string }[],
-    options?: {
-      model?: string;
-      approvalPolicy?: string;
-      sandboxPolicy?: string;
-    },
+    options?: TurnStartOptions,
   ): Promise<{ turnId: string; status: string }> {
     const data = await requestJson<{
       turn: { turnId: string; status: string };

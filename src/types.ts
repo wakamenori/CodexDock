@@ -5,6 +5,19 @@ export type Repo = {
   lastOpenedThreadId?: string;
 };
 
+export type PermissionMode = "FullAccess" | "ReadOnly" | "OnRequest";
+
+export type SandboxPolicy =
+  | { type: "dangerFullAccess" }
+  | { type: "readOnly" }
+  | { type: "workspaceWrite"; writableRoots: string[]; networkAccess: boolean };
+
+export type TurnStartOptions = {
+  model?: string;
+  approvalPolicy?: string;
+  sandboxPolicy?: SandboxPolicy;
+};
+
 export type JsonValue =
   | string
   | number

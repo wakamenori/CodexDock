@@ -18,7 +18,12 @@ import { pickRepoPath } from "./pathPicker.js";
 import type { RepoRegistry } from "./repoRegistry.js";
 import type { ThreadListRefresher } from "./threadListRefresher.js";
 import type { TurnStateStore } from "./turnState.js";
-import type { JsonObject, JsonValue, RepoEntry } from "./types.js";
+import type {
+  JsonObject,
+  JsonValue,
+  PermissionMode,
+  RepoEntry,
+} from "./types.js";
 
 const parseJson = async (c: Context) => {
   try {
@@ -118,6 +123,13 @@ const extractTurnId = (result: unknown) => {
   );
 };
 
+const normalizePermissionMode = (value: unknown): PermissionMode => {
+  if (value === "FullAccess" || value === "ReadOnly" || value === "OnRequest") {
+    return value;
+  }
+  return "ReadOnly";
+};
+
 const extractThreadId = (result: unknown) => {
   const record = isRecord(result) ? result : undefined;
   const threadRecord = getRecord(record, "thread");
@@ -191,6 +203,13 @@ export const createApp = (options: CreateAppOptions) => {
     return c.json({
       storedModel: settings.model ?? null,
       defaultModel,
+    });
+  });
+
+  app.get("/api/settings/permission-mode", async (c) => {
+    const settings = await registry.getSettings();
+    return c.json({
+      defaultMode: normalizePermissionMode(settings.permissionMode),
     });
   });
 

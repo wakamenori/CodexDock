@@ -1,3 +1,9 @@
+import {
+  normalizePermissionMode,
+  PERMISSION_MODE_OPTIONS,
+} from "../modules/conversation/domain/permissionMode";
+import type { PermissionMode } from "../types";
+
 type ComposerProps = {
   inputText: string;
   selectedThreadId: string | null;
@@ -5,10 +11,12 @@ type ComposerProps = {
   activeTurnId: string | null;
   selectedModel: string | null;
   availableModels: string[] | undefined;
+  permissionMode: PermissionMode;
   onInputTextChange: (value: string) => void;
   onSend: () => void | Promise<void>;
   onStop: () => void | Promise<void>;
   onModelChange: (model: string | null) => void;
+  onPermissionModeChange: (mode: PermissionMode) => void;
 };
 
 export function Composer({
@@ -18,10 +26,12 @@ export function Composer({
   activeTurnId,
   selectedModel,
   availableModels,
+  permissionMode,
   onInputTextChange,
   onSend,
   onStop,
   onModelChange,
+  onPermissionModeChange,
 }: ComposerProps) {
   const normalizedModel = selectedModel ?? "";
   const modelOptions = availableModels ?? [];
@@ -73,6 +83,24 @@ export function Composer({
                 {displayModels.map((model) => (
                   <option key={model} value={model}>
                     {model}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
+              <span>Permission</span>
+              <select
+                className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-100"
+                value={permissionMode}
+                onChange={(event) =>
+                  onPermissionModeChange(
+                    normalizePermissionMode(event.target.value),
+                  )
+                }
+              >
+                {PERMISSION_MODE_OPTIONS.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode}
                   </option>
                 ))}
               </select>

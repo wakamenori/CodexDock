@@ -20,12 +20,14 @@ export default function App() {
     inputText,
     selectedModel,
     availableModels,
+    permissionMode,
     selectRepo,
     setInputText,
     handleAddRepo,
     handleCreateThread,
     handleSelectThread,
     handleModelChange,
+    handlePermissionModeChange,
     handleApprove,
     handleSend,
     handleStop,
@@ -60,10 +62,12 @@ export default function App() {
           selectedRepoPath={selectedRepo?.path ?? null}
           selectedModel={selectedModel}
           availableModels={availableModels}
+          permissionMode={permissionMode}
           onInputTextChange={(value) => setInputText(value)}
           onSend={handleSend}
           onStop={handleStop}
           onModelChange={handleModelChange}
+          onPermissionModeChange={handlePermissionModeChange}
           onApprove={handleApprove}
         />
       </div>

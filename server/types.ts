@@ -7,8 +7,11 @@ export type RepoEntry = {
   lastOpenedThreadId?: string;
 };
 
+export type PermissionMode = "FullAccess" | "ReadOnly" | "OnRequest";
+
 export type AppSettings = {
   model?: string | null;
+  permissionMode?: PermissionMode | null;
 };
 
 export type JsonValue =

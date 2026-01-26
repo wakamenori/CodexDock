@@ -9,6 +9,7 @@ import type {
   ChatMessage,
   DiffEntry,
   FileChangeEntry,
+  PermissionMode,
   Repo,
   SessionStatus,
   ThreadStatusFlags,
@@ -29,6 +30,11 @@ import {
   deriveReviewingFromResume,
   normalizeRootPath,
 } from "../domain/parsers";
+import {
+  buildPermissionOptions,
+  normalizePermissionMode,
+  PERMISSION_MODE_OPTIONS,
+} from "../domain/permissionMode";
 import { createWsEventHandlers } from "../infra/wsHandlers";
 
 export type UseAppStateResult = {
@@ -52,12 +58,14 @@ export type UseAppStateResult = {
   inputText: string;
   selectedModel: string | null;
   availableModels: string[] | undefined;
+  permissionMode: PermissionMode;
   selectRepo: (repoId: string | null) => void;
   setInputText: (value: string) => void;
   handleAddRepo: () => Promise<void>;
   handleCreateThread: () => Promise<void>;
   handleSelectThread: (repoId: string, threadId: string) => Promise<void>;
   handleModelChange: (model: string | null) => void;
+  handlePermissionModeChange: (mode: PermissionMode) => void;
   handleApprove: (
     repoId: string,
     request: ApprovalRequest,
@@ -191,6 +199,8 @@ export const useConversationState = (): UseAppStateResult => {
   const [storedModel, setStoredModel] = useState<string | null>(null);
   const [defaultModel, setDefaultModel] = useState<string | null>(null);
   const [modelSettingsLoaded, setModelSettingsLoaded] = useState(false);
+  const [permissionMode, setPermissionMode] =
+    useState<PermissionMode>("ReadOnly");
   const [inputText, setInputText] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -203,6 +213,7 @@ export const useConversationState = (): UseAppStateResult => {
   const optimisticThreadsRef = useRef<
     Record<string, Record<string, ThreadSummary>>
   >({});
+  const permissionModeTouchedRef = useRef(false);
 
   const selectedRepo = useMemo(
     () => repos.find((repo) => repo.repoId === selectedRepoId) ?? null,
@@ -240,6 +251,13 @@ export const useConversationState = (): UseAppStateResult => {
       }),
     [availableModels, defaultModel, modelSettingsLoaded, storedModel],
   );
+
+  const handlePermissionModeChange = useCallback((mode: PermissionMode) => {
+    permissionModeTouchedRef.current = true;
+    if (PERMISSION_MODE_OPTIONS.includes(mode)) {
+      setPermissionMode(mode);
+    }
+  }, []);
 
   const repoGroups = useMemo(
     () =>
@@ -539,6 +557,22 @@ export const useConversationState = (): UseAppStateResult => {
         );
       } finally {
         setModelSettingsLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const settings = await api.getPermissionModeSettings();
+        if (permissionModeTouchedRef.current) return;
+        setPermissionMode(normalizePermissionMode(settings.defaultMode));
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to load permission mode",
+        );
       }
     })();
   }, []);
@@ -875,11 +909,15 @@ export const useConversationState = (): UseAppStateResult => {
       updateThreadPreview(selectedRepoId, selectedThreadId, text);
     }
     try {
+      const permissionOptions = buildPermissionOptions(
+        permissionMode,
+        selectedRepo?.path,
+      );
       const turn = await api.startTurn(
         selectedRepoId,
         selectedThreadId,
         [{ type: "text", text }],
-        { model: modelToSend },
+        { model: modelToSend, ...permissionOptions },
       );
       setActiveTurnByThread((prev) => ({
         ...prev,
@@ -910,6 +948,8 @@ export const useConversationState = (): UseAppStateResult => {
     selectedThreadId,
     selectedModel,
     availableModels,
+    permissionMode,
+    selectedRepo?.path,
     threadsByRepo,
     updateThreadMessages,
     updateThreadPreview,
@@ -1056,12 +1096,14 @@ export const useConversationState = (): UseAppStateResult => {
     inputText,
     selectedModel,
     availableModels,
+    permissionMode,
     selectRepo,
     setInputText,
     handleAddRepo,
     handleCreateThread,
     handleSelectThread,
     handleModelChange,
+    handlePermissionModeChange,
     handleApprove,
     handleSend,
     handleStop,

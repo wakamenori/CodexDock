@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../../api";
-import type { Repo, ThreadSummary } from "../../../types";
+import type { PermissionMode, Repo, ThreadSummary } from "../../../types";
 import { useConversationState } from "./useConversationState";
 
 vi.mock("../../../api", () => {
@@ -32,6 +32,7 @@ vi.mock("../../../api", () => {
       listThreads: vi.fn(),
       listModels: vi.fn(),
       getModelSettings: vi.fn(),
+      getPermissionModeSettings: vi.fn(),
       updateModelSetting: vi.fn(),
       createThread: vi.fn(),
       resumeThread: vi.fn(),
@@ -92,6 +93,7 @@ const setupHook = async (
   options?: {
     models?: string[];
     settings?: { storedModel: string | null; defaultModel: string | null };
+    permissionMode?: PermissionMode;
   },
 ) => {
   const repo: Repo = {
@@ -109,12 +111,16 @@ const setupHook = async (
     storedModel: "gpt-5.2-codex",
     defaultModel: "gpt-5.2-codex",
   };
+  const permissionMode = options?.permissionMode ?? "ReadOnly";
 
   mockedApi.listRepos.mockResolvedValue([repo]);
   mockedApi.startSession.mockResolvedValue(undefined);
   mockedApi.listThreads.mockResolvedValue(threads);
   mockedApi.listModels.mockResolvedValue(models);
   mockedApi.getModelSettings.mockResolvedValue(settings);
+  mockedApi.getPermissionModeSettings.mockResolvedValue({
+    defaultMode: permissionMode,
+  });
   mockedApi.updateModelSetting.mockResolvedValue(settings.storedModel);
   mockedApi.resumeThread.mockResolvedValue({});
   mockedApi.updateRepo.mockResolvedValue(repo);
@@ -167,6 +173,9 @@ describe("useConversationState websocket subscriptions", () => {
     mockedApi.getModelSettings.mockResolvedValue({
       storedModel: "gpt-5.2-codex",
       defaultModel: "gpt-5.2-codex",
+    });
+    mockedApi.getPermissionModeSettings.mockResolvedValue({
+      defaultMode: "ReadOnly",
     });
     mockedApi.resumeThread.mockResolvedValue({});
     mockedApi.updateRepo.mockResolvedValue(repos[0]);
@@ -378,6 +387,70 @@ describe("useConversationState handleSend", () => {
 
     expect(mockedApi.startTurn).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  it("includes FullAccess permission options in startTurn", async () => {
+    const hook = await setupHook(undefined, { permissionMode: "FullAccess" });
+    mockedApi.startTurn.mockResolvedValue({
+      turnId: "turn-1",
+      status: "running",
+    });
+
+    await waitFor(() => {
+      expect(hook.result.current.permissionMode).toBe("FullAccess");
+    });
+
+    await act(async () => {
+      hook.result.current.setInputText("hello");
+    });
+
+    await act(async () => {
+      await hook.result.current.handleSend();
+    });
+
+    expect(mockedApi.startTurn).toHaveBeenCalledWith(
+      "repo-1",
+      "thread-1",
+      [{ type: "text", text: "hello" }],
+      expect.objectContaining({
+        approvalPolicy: "never",
+        sandboxPolicy: { type: "dangerFullAccess" },
+      }),
+    );
+  });
+
+  it("includes OnRequest permission options with repo path", async () => {
+    const hook = await setupHook(undefined, { permissionMode: "OnRequest" });
+    mockedApi.startTurn.mockResolvedValue({
+      turnId: "turn-1",
+      status: "running",
+    });
+
+    await waitFor(() => {
+      expect(hook.result.current.permissionMode).toBe("OnRequest");
+    });
+
+    await act(async () => {
+      hook.result.current.setInputText("hello");
+    });
+
+    await act(async () => {
+      await hook.result.current.handleSend();
+    });
+
+    expect(mockedApi.startTurn).toHaveBeenCalledWith(
+      "repo-1",
+      "thread-1",
+      [{ type: "text", text: "hello" }],
+      expect.objectContaining({
+        approvalPolicy: "on-request",
+        sandboxPolicy: {
+          type: "workspaceWrite",
+          writableRoots: ["/repo"],
+          networkAccess: true,
+        },
+      }),
+    );
   });
 });
 

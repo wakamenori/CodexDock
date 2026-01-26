@@ -13,10 +13,12 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
     activeTurnId: null,
     selectedModel: null,
     availableModels: [],
+    permissionMode: "ReadOnly",
     onInputTextChange: vi.fn(),
     onSend: vi.fn(),
     onStop: vi.fn(),
     onModelChange: vi.fn(),
+    onPermissionModeChange: vi.fn(),
     ...overrides,
   };
 
