@@ -44,7 +44,8 @@ export function Composer({
           onKeyDown={(event) => {
             const isComposing =
               event.nativeEvent.isComposing || event.key === "Process";
-            if (event.key !== "Enter" || !event.ctrlKey || isComposing) return;
+            const isSendShortcut = event.ctrlKey || event.metaKey;
+            if (event.key !== "Enter" || !isSendShortcut || isComposing) return;
             event.preventDefault();
             if (running || !selectedThreadId || !inputText.trim()) return;
             void onSend();
@@ -55,7 +56,7 @@ export function Composer({
           <span>
             {running
               ? "Streaming..."
-              : "Enter for newline · Ctrl+Enter to send"}
+              : "Enter for newline · Ctrl/Cmd+Enter to send"}
           </span>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2">

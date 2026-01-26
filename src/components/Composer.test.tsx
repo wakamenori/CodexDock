@@ -27,7 +27,7 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
 describe("Composer", () => {
   afterEach(() => cleanup());
 
-  it("sends only on Ctrl+Enter", () => {
+  it("sends only on Ctrl/Cmd+Enter", () => {
     const props = setup();
     const input = screen.getByRole("textbox");
 
@@ -36,6 +36,9 @@ describe("Composer", () => {
 
     fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
     expect(props.onSend).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(input, { key: "Enter", metaKey: true });
+    expect(props.onSend).toHaveBeenCalledTimes(2);
   });
 
   it("does not send while composing", () => {
