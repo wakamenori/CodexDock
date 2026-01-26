@@ -38,16 +38,21 @@ export function Composer({
           value={inputText}
           onChange={(event) => onInputTextChange(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              if (running || !selectedThreadId || !inputText.trim()) return;
-              void onSend();
-            }
+            const isComposing =
+              event.nativeEvent.isComposing || event.key === "Process";
+            if (event.key !== "Enter" || !event.ctrlKey || isComposing) return;
+            event.preventDefault();
+            if (running || !selectedThreadId || !inputText.trim()) return;
+            void onSend();
           }}
           disabled={!selectedThreadId}
         />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-300">
-          <span>{running ? "Streaming..." : "Shift+Enter for newline"}</span>
+          <span>
+            {running
+              ? "Streaming..."
+              : "Enter for newline · Ctrl+Enter to send"}
+          </span>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2">
               <span>Model</span>
