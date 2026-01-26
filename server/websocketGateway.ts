@@ -53,7 +53,7 @@ export class WebSocketGateway {
       try {
         const payload = JSON.parse(data.toString());
         void this.handleMessage(conn, payload);
-      } catch (error) {
+      } catch {
         this.logger.warn(
           { component: "ws", connectionId: id },
           "invalid_message",

@@ -6,7 +6,13 @@
   },
   "linter": {
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "correctness": {
+        "noUnusedImports": {
+          "level": "warn",
+          "fix": "safe"
+        }
+      }
     }
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },

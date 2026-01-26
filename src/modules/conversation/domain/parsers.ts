@@ -1,5 +1,5 @@
 import { normalizeRootPath as normalizeRootPathShared } from "../../../shared/paths";
-import { asRecord, getIdString, getRecordId } from "../../../shared/records";
+import { asRecord, getRecordId } from "../../../shared/records";
 import type { ChatMessage, FileChangeEntry } from "../../../types";
 
 const REASONING_SUMMARY_LIMIT = 4000;

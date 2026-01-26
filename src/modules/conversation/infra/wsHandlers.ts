@@ -11,7 +11,6 @@ import type {
 import {
   appendReasoningContent,
   appendReasoningSummary,
-  buildMessagesFromResume,
   parseAgentMessageText,
   parseDeltaText,
   parseDiffText,
@@ -30,7 +29,6 @@ import {
   applyFileChangeUpdate,
   applyReasoningStart,
   applyUserMessageStart,
-  removeApproval,
   upsertAgentDelta,
   upsertReasoningDelta,
 } from "../domain/state";

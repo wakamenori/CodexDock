@@ -193,7 +193,7 @@ export class AppServerSession extends EventEmitter {
     let message: unknown;
     try {
       message = JSON.parse(line);
-    } catch (error) {
+    } catch {
       this.logger.warn(
         { component: "app_server_session", repoId: this.repoId, line },
         "invalid_json",

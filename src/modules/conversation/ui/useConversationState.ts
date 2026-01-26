@@ -9,7 +9,6 @@ import type {
   ChatMessage,
   DiffEntry,
   FileChangeEntry,
-  JsonValue,
   Repo,
   SessionStatus,
   ThreadStatusFlags,

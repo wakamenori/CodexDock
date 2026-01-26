@@ -278,7 +278,7 @@ export const createApp = (options: CreateAppOptions) => {
     await requireRepo(repoId);
     try {
       await manager.stop(repoId);
-    } catch (error) {
+    } catch {
       throw new ApiError(500, "session_stop_failed", "Failed to stop session", {
         repoId,
       });

@@ -1,5 +1,5 @@
 import { mkdtemp } from "node:fs/promises";
-import { createServer, type Server } from "node:http";
+import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { getRequestListener } from "@hono/node-server";
