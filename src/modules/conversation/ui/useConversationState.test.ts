@@ -643,4 +643,62 @@ describe("useConversationState handleCreateThread", () => {
       expect(threadIds).toContain("thread-2");
     });
   });
+
+  it("loads models on demand for an unselected repo", async () => {
+    const repos: Repo[] = [
+      {
+        repoId: "repo-1",
+        name: "repo-1",
+        path: "/repo-1",
+        lastOpenedThreadId: "thread-1",
+      },
+      {
+        repoId: "repo-2",
+        name: "repo-2",
+        path: "/repo-2",
+        lastOpenedThreadId: "thread-2",
+      },
+    ];
+    const threads1: ThreadSummary[] = [
+      { threadId: "thread-1", cwd: "/repo-1" },
+    ];
+    const threads2: ThreadSummary[] = [
+      { threadId: "thread-2", cwd: "/repo-2" },
+    ];
+
+    mockedApi.listRepos.mockResolvedValue(repos);
+    mockedApi.startSession.mockResolvedValue(undefined);
+    mockedApi.listThreads.mockImplementation(async (repoId) => {
+      return repoId === "repo-1" ? threads1 : threads2;
+    });
+    mockedApi.listModels.mockImplementation(async (repoId) => {
+      return repoId === "repo-1" ? ["gpt-5.2-codex"] : ["gpt-4o-mini"];
+    });
+    mockedApi.getModelSettings.mockResolvedValue({
+      storedModel: null,
+      defaultModel: null,
+    });
+    mockedApi.getPermissionModeSettings.mockResolvedValue({
+      defaultMode: "ReadOnly",
+    });
+    mockedApi.resumeThread.mockResolvedValue({});
+    mockedApi.updateRepo.mockResolvedValue(repos[0]);
+    mockedApi.createThread.mockResolvedValue("thread-3");
+
+    const hook = renderHook(() => useConversationState());
+    await waitFor(() => {
+      expect(hook.result.current.selectedThreadId).toBe("thread-1");
+    });
+
+    await act(async () => {
+      await hook.result.current.handleCreateThread("repo-2");
+    });
+
+    expect(mockedApi.listModels).toHaveBeenCalledWith("repo-2");
+    expect(mockedApi.createThread).toHaveBeenCalledWith(
+      "repo-2",
+      "gpt-4o-mini",
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+  });
 });

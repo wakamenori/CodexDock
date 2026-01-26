@@ -70,7 +70,7 @@ export type UseAppStateResult = {
   selectRepo: (repoId: string | null) => void;
   setInputText: (value: string) => void;
   handleAddRepo: () => Promise<void>;
-  handleCreateThread: () => Promise<void>;
+  handleCreateThread: (targetRepoId?: string | null) => Promise<void>;
   handleSelectThread: (repoId: string, threadId: string) => Promise<void>;
   handleModelChange: (model: string | null) => void;
   handlePermissionModeChange: (mode: PermissionMode) => void;
@@ -1070,7 +1070,22 @@ export const useConversationState = (): UseAppStateResult => {
       const repoId = targetRepoId ?? selectedRepoId;
       if (!repoId) return;
       try {
-        const models = availableModelsByRepo[repoId];
+        let models = availableModelsByRepo[repoId];
+        if (models === undefined) {
+          try {
+            const result = await api.listModels(repoId);
+            models = extractModelIds(result);
+            setAvailableModelsByRepo((prev) => ({
+              ...prev,
+              [repoId]: models ?? [],
+            }));
+          } catch (error) {
+            toast.error(
+              error instanceof Error ? error.message : "Failed to load models",
+            );
+            return;
+          }
+        }
         if (!models || models.length === 0) {
           toast.error("Model is not set");
           return;
