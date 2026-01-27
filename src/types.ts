@@ -45,6 +45,7 @@ export type ThreadSummary = {
   preview?: string;
   createdAt?: string;
   updatedAt?: string;
+  lastMessageAt?: string;
 };
 
 export type ThreadStatusFlags = {

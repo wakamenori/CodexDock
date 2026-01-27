@@ -61,9 +61,12 @@ export function Sidebar({
       ? "animate-pulseSoft"
       : "";
 
-  const getThreadTime = (value?: string) => formatRelativeTime(value);
+  const getThreadTimeValue = (thread: ThreadSummary) =>
+    thread.lastMessageAt ?? thread.updatedAt ?? thread.createdAt;
+  const getThreadTime = (thread: ThreadSummary) =>
+    formatRelativeTime(getThreadTimeValue(thread));
   const getThreadTimestamp = (thread: ThreadSummary) => {
-    const value = thread.createdAt ?? thread.updatedAt;
+    const value = getThreadTimeValue(thread);
     if (!value) return 0;
     const time = new Date(value).getTime();
     return Number.isNaN(time) ? 0 : time;
@@ -137,9 +140,7 @@ export function Sidebar({
                   {visibleThreads.map((thread) => {
                     const preview = thread.preview?.trim();
                     const label = preview || "New thread";
-                    const timeLabel = getThreadTime(
-                      thread.createdAt ?? thread.updatedAt,
-                    );
+                    const timeLabel = getThreadTime(thread);
                     const isThreadSelected =
                       isSelected && selectedThreadId === thread.threadId;
                     const threadStatus =

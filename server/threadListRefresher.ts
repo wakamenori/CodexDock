@@ -1,6 +1,7 @@
 import type { Logger } from "pino";
 import type { AppServerManager } from "./appServerManager.js";
 import { getArray, getIdString, isRecord } from "./guards.js";
+import { getLastMessageAt } from "./rolloutLastMessage.js";
 import type { WebSocketGateway } from "./websocketGateway.js";
 
 export class ThreadListRefresher {
@@ -48,24 +49,30 @@ export class ThreadListRefresher {
         },
         "thread_list_raw",
       );
-      const normalized = threads
-        .map((item) => {
-          const record = isRecord(item) ? item : undefined;
-          const threadId =
-            getIdString(record?.id) ?? getIdString(record?.threadId);
-          return {
-            threadId,
-            cwd: getStringValue(record, "cwd"),
-            preview: getStringValue(record, "preview"),
-            createdAt:
-              getTimeValue(record, "createdAt") ??
-              getTimeValue(record, "updatedAt"),
-            updatedAt:
-              getTimeValue(record, "updatedAt") ??
-              getTimeValue(record, "createdAt"),
-          };
-        })
-        .filter((item) => Boolean(item.threadId));
+      const normalized = (
+        await Promise.all(
+          threads.map(async (item) => {
+            const record = isRecord(item) ? item : undefined;
+            const threadId =
+              getIdString(record?.id) ?? getIdString(record?.threadId);
+            if (!threadId) return null;
+            const threadPath = getStringValue(record, "path");
+            const lastMessageAt = await getLastMessageAt(threadPath);
+            const base = {
+              threadId,
+              cwd: getStringValue(record, "cwd"),
+              preview: getStringValue(record, "preview"),
+              createdAt:
+                getTimeValue(record, "createdAt") ??
+                getTimeValue(record, "updatedAt"),
+              updatedAt:
+                getTimeValue(record, "updatedAt") ??
+                getTimeValue(record, "createdAt"),
+            };
+            return lastMessageAt ? { ...base, lastMessageAt } : base;
+          }),
+        )
+      ).filter((item): item is NonNullable<typeof item> => Boolean(item));
       this.logger.info(
         {
           component: "thread_list_refresher",
@@ -131,6 +138,7 @@ const summarizeNormalizedThreads = (
     threadId?: string;
     createdAt?: string;
     updatedAt?: string;
+    lastMessageAt?: string;
     preview?: string;
   }[],
 ) =>
@@ -138,5 +146,6 @@ const summarizeNormalizedThreads = (
     threadId: thread.threadId ?? null,
     createdAt: thread.createdAt ?? null,
     updatedAt: thread.updatedAt ?? null,
+    lastMessageAt: thread.lastMessageAt ?? null,
     previewLength: thread.preview?.length ?? 0,
   }));

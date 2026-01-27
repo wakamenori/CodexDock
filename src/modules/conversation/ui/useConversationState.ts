@@ -383,6 +383,69 @@ export const useConversationState = (): UseAppStateResult => {
     [],
   );
 
+  const updateThreadLastMessageAt = useCallback(
+    (repoId: string, threadId: string, lastMessageAt: string) => {
+      if (!lastMessageAt) return;
+      setThreadsByRepo((prev) => {
+        const list = prev[repoId] ?? [];
+        let updated = false;
+        const next = list.map((thread) => {
+          if (thread.threadId !== threadId) return thread;
+          updated = true;
+          return { ...thread, lastMessageAt };
+        });
+        if (!updated) return prev;
+        return { ...prev, [repoId]: next };
+      });
+      const optimisticRepo = optimisticThreadsRef.current[repoId];
+      const optimisticThread = optimisticRepo?.[threadId];
+      if (optimisticThread) {
+        optimisticRepo[threadId] = { ...optimisticThread, lastMessageAt };
+      }
+    },
+    [],
+  );
+
+  const rollbackThreadLastMessageAt = useCallback(
+    (
+      repoId: string,
+      threadId: string,
+      optimisticTimestamp: string,
+      previousTimestamp: string | null,
+    ) => {
+      setThreadsByRepo((prev) => {
+        const list = prev[repoId] ?? [];
+        let updated = false;
+        const next = list.map((thread) => {
+          if (thread.threadId !== threadId) return thread;
+          if (thread.lastMessageAt !== optimisticTimestamp) return thread;
+          updated = true;
+          if (!previousTimestamp) {
+            const { lastMessageAt: _ignored, ...rest } = thread;
+            return rest;
+          }
+          return { ...thread, lastMessageAt: previousTimestamp };
+        });
+        if (!updated) return prev;
+        return { ...prev, [repoId]: next };
+      });
+      const optimisticRepo = optimisticThreadsRef.current[repoId];
+      const optimisticThread = optimisticRepo?.[threadId];
+      if (optimisticThread?.lastMessageAt === optimisticTimestamp) {
+        if (previousTimestamp) {
+          optimisticRepo[threadId] = {
+            ...optimisticThread,
+            lastMessageAt: previousTimestamp,
+          };
+        } else {
+          const { lastMessageAt: _ignored, ...rest } = optimisticThread;
+          optimisticRepo[threadId] = rest;
+        }
+      }
+    },
+    [],
+  );
+
   const rollbackThreadPreview = useCallback(
     (
       repoId: string,
@@ -1013,10 +1076,16 @@ export const useConversationState = (): UseAppStateResult => {
       },
     ]);
     setInputText("");
+    const nowIso = new Date().toISOString();
     const currentPreview =
       threadsByRepo[selectedRepoId]?.find(
         (thread) => thread.threadId === selectedThreadId,
       )?.preview ?? null;
+    const previousLastMessageAt =
+      threadsByRepo[selectedRepoId]?.find(
+        (thread) => thread.threadId === selectedThreadId,
+      )?.lastMessageAt ?? null;
+    updateThreadLastMessageAt(selectedRepoId, selectedThreadId, nowIso);
     const shouldUpdatePreview = currentPreview?.trim() === NEW_THREAD_PREVIEW;
     if (shouldUpdatePreview) {
       updateThreadPreview(selectedRepoId, selectedThreadId, text);
@@ -1053,6 +1122,12 @@ export const useConversationState = (): UseAppStateResult => {
           currentPreview,
         );
       }
+      rollbackThreadLastMessageAt(
+        selectedRepoId,
+        selectedThreadId,
+        nowIso,
+        previousLastMessageAt,
+      );
       setInputText(originalText);
       toast.error(error instanceof Error ? error.message : "Turn failed");
     }
@@ -1066,6 +1141,8 @@ export const useConversationState = (): UseAppStateResult => {
     selectedRepo?.path,
     threadsByRepo,
     updateThreadMessages,
+    updateThreadLastMessageAt,
+    rollbackThreadLastMessageAt,
     updateThreadPreview,
     rollbackThreadPreview,
     updateThreadStatus,

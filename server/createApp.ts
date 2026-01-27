@@ -16,6 +16,7 @@ import { httpLogger } from "./logger.js";
 import type { RepoPathPicker } from "./pathPicker.js";
 import { pickRepoPath } from "./pathPicker.js";
 import type { RepoRegistry } from "./repoRegistry.js";
+import { getLastMessageAt } from "./rolloutLastMessage.js";
 import type { ThreadListRefresher } from "./threadListRefresher.js";
 import type { TurnStateStore } from "./turnState.js";
 import type {
@@ -59,17 +60,27 @@ const getTimeString = (
   return undefined;
 };
 
-const mapThreadList = (result: unknown) => {
+const mapThreadList = async (result: unknown) => {
   const threads =
     getArray(result, "threads") ??
     getArray(result, "items") ??
     getArray(result, "data") ??
     [];
-  return threads
-    .map((item) => {
+  const mapped = await Promise.all(
+    threads.map(async (item) => {
       const record = isRecord(item) ? item : undefined;
       const threadId = getIdString(record?.id) ?? getIdString(record?.threadId);
-      return {
+      if (!threadId) return null;
+      const threadPath = getString(record, "path");
+      const lastMessageAt = await getLastMessageAt(threadPath);
+      const base: {
+        threadId: string;
+        cwd?: string;
+        preview?: string;
+        createdAt?: string;
+        updatedAt?: string;
+        lastMessageAt?: string;
+      } = {
         threadId,
         cwd: getString(record, "cwd"),
         preview: getString(record, "preview"),
@@ -80,8 +91,15 @@ const mapThreadList = (result: unknown) => {
           getTimeString(record, "updatedAt") ??
           getTimeString(record, "createdAt"),
       };
-    })
-    .filter((item) => Boolean(item.threadId));
+      if (lastMessageAt) {
+        base.lastMessageAt = lastMessageAt;
+      }
+      return base;
+    }),
+  );
+  return mapped.filter((item): item is NonNullable<typeof item> =>
+    Boolean(item),
+  );
 };
 
 const summarizeThreadListRaw = (result: unknown) => {
@@ -104,12 +122,13 @@ const summarizeThreadListRaw = (result: unknown) => {
 };
 
 const summarizeNormalizedThreads = (
-  threads: ReturnType<typeof mapThreadList>,
+  threads: Awaited<ReturnType<typeof mapThreadList>>,
 ) =>
   threads.map((thread) => ({
     threadId: thread.threadId,
     createdAt: thread.createdAt ?? null,
     updatedAt: thread.updatedAt ?? null,
+    lastMessageAt: thread.lastMessageAt ?? null,
     previewLength: thread.preview?.length ?? 0,
   }));
 
@@ -389,7 +408,7 @@ export const createApp = (options: CreateAppOptions) => {
         },
         "thread_list_raw",
       );
-      const normalized = mapThreadList(result);
+      const normalized = await mapThreadList(result);
       logger.info(
         {
           component: "thread_list_http",
