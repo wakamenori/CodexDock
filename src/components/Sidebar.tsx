@@ -1,42 +1,27 @@
 import { useState } from "react";
 
+import { useConversationCommands } from "../modules/conversation/provider/useConversationCommands";
+import { useConversationSelector } from "../modules/conversation/provider/useConversationSelector";
+import {
+  selectFocusedRepoId,
+  selectFocusedThreadId,
+  selectFocusedThreadRunning,
+  selectRepoGroups,
+  selectThreadUiStatusById,
+} from "../modules/conversation/store/selectors";
 import { formatRelativeTime } from "../shared/date";
-import type {
-  Repo,
-  SessionStatus,
-  ThreadSummary,
-  ThreadUiStatus,
-} from "../types";
+import type { ThreadSummary, ThreadUiStatus } from "../types";
 
-type RepoGroup = {
-  repo: Repo;
-  threads: ThreadSummary[];
-  sessionStatus: SessionStatus;
-};
-
-type SidebarProps = {
-  repoGroups: RepoGroup[];
-  threadUiStatusByThread: Record<string, ThreadUiStatus>;
-  selectedRepoId: string | null;
-  running: boolean;
-  selectedThreadId: string | null;
-  onSelectRepo: (repoId: string | null) => void;
-  onAddRepo: () => void;
-  onCreateThread: (repoId: string) => void;
-  onSelectThread: (repoId: string, threadId: string) => void;
-};
-
-export function Sidebar({
-  repoGroups,
-  threadUiStatusByThread,
-  selectedRepoId,
-  running,
-  selectedThreadId,
-  onSelectRepo,
-  onAddRepo,
-  onCreateThread,
-  onSelectThread,
-}: SidebarProps) {
+export function Sidebar() {
+  const repoGroups = useConversationSelector(selectRepoGroups);
+  const threadUiStatusByThread = useConversationSelector(
+    selectThreadUiStatusById,
+  );
+  const selectedRepoId = useConversationSelector(selectFocusedRepoId);
+  const selectedThreadId = useConversationSelector(selectFocusedThreadId);
+  const running = useConversationSelector(selectFocusedThreadRunning);
+  const { focusRepo, createThread, focusThread, addRepo } =
+    useConversationCommands();
   const [expandedRepos, setExpandedRepos] = useState<Record<string, boolean>>(
     {},
   );
@@ -116,7 +101,9 @@ export function Sidebar({
                 <div className="flex items-center gap-2">
                   <button
                     className="flex-1 truncate text-left text-sm font-semibold text-ink-100 hover:text-ink-50"
-                    onClick={() => onSelectRepo(repo.repoId)}
+                    onClick={() => {
+                      void focusRepo(repo.repoId);
+                    }}
                     disabled={running}
                     type="button"
                     title={repo.name}
@@ -127,7 +114,7 @@ export function Sidebar({
                     className="rounded-full border border-ink-600 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-ink-300 transition hover:border-neon-400 hover:text-ink-100"
                     onClick={(event) => {
                       event.stopPropagation();
-                      onCreateThread(repo.repoId);
+                      void createThread(repo.repoId);
                     }}
                     disabled={running}
                     type="button"
@@ -154,7 +141,7 @@ export function Sidebar({
                             : "text-ink-200 hover:bg-ink-800/60"
                         }`}
                         onClick={() =>
-                          onSelectThread(repo.repoId, thread.threadId)
+                          void focusThread(repo.repoId, thread.threadId)
                         }
                         type="button"
                         title={label}
@@ -195,7 +182,7 @@ export function Sidebar({
 
       <button
         className="w-full rounded-md border border-ink-600 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-ink-300 transition hover:border-ink-400 hover:text-ink-200"
-        onClick={onAddRepo}
+        onClick={() => void addRepo()}
         type="button"
       >
         Add Repo

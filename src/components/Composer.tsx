@@ -1,56 +1,44 @@
+import { useState } from "react";
+import { toast } from "sonner";
+
 import {
   normalizePermissionMode,
   PERMISSION_MODE_OPTIONS,
 } from "../modules/conversation/domain/permissionMode";
-import type { PermissionMode, ReviewTargetType } from "../types";
+import { useConversationCommands } from "../modules/conversation/provider/useConversationCommands";
+import { useConversationSelector } from "../modules/conversation/provider/useConversationSelector";
+import {
+  selectAvailableModels,
+  selectFocusedModel,
+  selectFocusedThreadActiveTurnId,
+  selectFocusedThreadId,
+  selectFocusedThreadRunning,
+  selectPermissionMode,
+} from "../modules/conversation/store/selectors";
+import type { ReviewTargetType } from "../types";
 
-type ComposerProps = {
-  inputText: string;
-  reviewTargetType: ReviewTargetType;
-  reviewBaseBranch: string;
-  reviewCommitSha: string;
-  reviewCustomInstructions: string;
-  selectedThreadId: string | null;
-  running: boolean;
-  activeTurnId: string | null;
-  selectedModel: string | null;
-  availableModels: string[] | undefined;
-  permissionMode: PermissionMode;
-  onInputTextChange: (value: string) => void;
-  onReviewTargetTypeChange: (value: ReviewTargetType) => void;
-  onReviewBaseBranchChange: (value: string) => void;
-  onReviewCommitShaChange: (value: string) => void;
-  onReviewCustomInstructionsChange: (value: string) => void;
-  onSend: () => void | Promise<void>;
-  onReviewStart: () => void | Promise<void>;
-  onStop: () => void | Promise<void>;
-  onModelChange: (model: string | null) => void;
-  onPermissionModeChange: (mode: PermissionMode) => void;
-};
+export function Composer() {
+  const [inputText, setInputText] = useState("");
+  const [reviewTargetType, setReviewTargetType] =
+    useState<ReviewTargetType>("uncommittedChanges");
+  const [reviewBaseBranch, setReviewBaseBranch] = useState("");
+  const [reviewCommitSha, setReviewCommitSha] = useState("");
+  const [reviewCustomInstructions, setReviewCustomInstructions] = useState("");
 
-export function Composer({
-  inputText,
-  reviewTargetType,
-  reviewBaseBranch,
-  reviewCommitSha,
-  reviewCustomInstructions,
-  selectedThreadId,
-  running,
-  activeTurnId,
-  selectedModel,
-  availableModels,
-  permissionMode,
-  onInputTextChange,
-  onReviewTargetTypeChange,
-  onReviewBaseBranchChange,
-  onReviewCommitShaChange,
-  onReviewCustomInstructionsChange,
-  onSend,
-  onReviewStart,
-  onStop,
-  onModelChange,
-  onPermissionModeChange,
-}: ComposerProps) {
+  const selectedThreadId = useConversationSelector(selectFocusedThreadId);
+  const running = useConversationSelector(selectFocusedThreadRunning);
+  const activeTurnId = useConversationSelector(selectFocusedThreadActiveTurnId);
+  const selectedModel = useConversationSelector(selectFocusedModel);
+  const availableModels = useConversationSelector(selectAvailableModels);
+  const permissionMode = useConversationSelector(selectPermissionMode);
+  const {
+    sendMessage,
+    startReview,
+    stopActiveTurn,
+    updateModel,
+    updatePermissionMode,
+  } = useConversationCommands();
+
   const normalizedModel = selectedModel ?? "";
   const modelOptions = availableModels ?? [];
   const displayModels = normalizedModel
@@ -64,6 +52,44 @@ export function Composer({
       reviewCustomInstructions.trim().length > 0);
   const reviewDisabled = !selectedThreadId || running || !reviewReady;
 
+  const handleSend = async () => {
+    if (!selectedThreadId) return;
+    const text = inputText;
+    setInputText("");
+    await sendMessage(text);
+  };
+
+  const buildReviewTarget = () => {
+    if (reviewTargetType === "uncommittedChanges") {
+      return { type: "uncommittedChanges" } as const;
+    }
+    if (reviewTargetType === "baseBranch") {
+      const branch = reviewBaseBranch.trim();
+      if (!branch) return null;
+      return { type: "baseBranch", branch } as const;
+    }
+    if (reviewTargetType === "commit") {
+      const sha = reviewCommitSha.trim();
+      if (!sha) return null;
+      return { type: "commit", sha } as const;
+    }
+    if (reviewTargetType === "custom") {
+      const instructions = reviewCustomInstructions.trim();
+      if (!instructions) return null;
+      return { type: "custom", instructions } as const;
+    }
+    return null;
+  };
+
+  const handleReview = async () => {
+    const target = buildReviewTarget();
+    if (!target) {
+      toast.error("Review target is not set");
+      return;
+    }
+    await startReview(target);
+  };
+
   return (
     <div className="border-t border-ink-700 px-6 py-4">
       <div className="rounded-xl border border-ink-700 bg-ink-800/70 px-4 py-3">
@@ -74,7 +100,7 @@ export function Composer({
             className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-100"
             value={reviewTargetType}
             onChange={(event) =>
-              onReviewTargetTypeChange(event.target.value as ReviewTargetType)
+              setReviewTargetType(event.target.value as ReviewTargetType)
             }
             disabled={!selectedThreadId || running}
           >
@@ -89,7 +115,7 @@ export function Composer({
               className="min-w-[140px] flex-1 rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-100 placeholder:text-ink-500"
               placeholder="branch (e.g. main)"
               value={reviewBaseBranch}
-              onChange={(event) => onReviewBaseBranchChange(event.target.value)}
+              onChange={(event) => setReviewBaseBranch(event.target.value)}
               disabled={!selectedThreadId || running}
               type="text"
             />
@@ -100,7 +126,7 @@ export function Composer({
               className="min-w-[180px] flex-1 rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-100 placeholder:text-ink-500"
               placeholder="commit sha"
               value={reviewCommitSha}
-              onChange={(event) => onReviewCommitShaChange(event.target.value)}
+              onChange={(event) => setReviewCommitSha(event.target.value)}
               disabled={!selectedThreadId || running}
               type="text"
             />
@@ -112,7 +138,7 @@ export function Composer({
               placeholder="instructions"
               value={reviewCustomInstructions}
               onChange={(event) =>
-                onReviewCustomInstructionsChange(event.target.value)
+                setReviewCustomInstructions(event.target.value)
               }
               disabled={!selectedThreadId || running}
               type="text"
@@ -120,7 +146,7 @@ export function Composer({
           )}
           <button
             className="rounded-md border border-neon-500/60 px-3 py-1 text-xs font-semibold text-neon-200 disabled:opacity-40"
-            onClick={onReviewStart}
+            onClick={() => void handleReview()}
             disabled={reviewDisabled}
             type="button"
           >
@@ -135,7 +161,7 @@ export function Composer({
               : "Select or create a thread"
           }
           value={inputText}
-          onChange={(event) => onInputTextChange(event.target.value)}
+          onChange={(event) => setInputText(event.target.value)}
           onKeyDown={(event) => {
             const isComposing =
               event.nativeEvent.isComposing || event.key === "Process";
@@ -143,7 +169,7 @@ export function Composer({
             if (event.key !== "Enter" || !isSendShortcut || isComposing) return;
             event.preventDefault();
             if (running || !selectedThreadId || !inputText.trim()) return;
-            void onSend();
+            void handleSend();
           }}
           disabled={!selectedThreadId}
         />
@@ -154,7 +180,7 @@ export function Composer({
               aria-label="Model"
               className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-100"
               value={normalizedModel}
-              onChange={(event) => onModelChange(event.target.value || null)}
+              onChange={(event) => updateModel(event.target.value || null)}
               disabled={!selectedThreadId}
             >
               <option value="" disabled>
@@ -171,7 +197,7 @@ export function Composer({
               className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-100"
               value={permissionMode}
               onChange={(event) =>
-                onPermissionModeChange(
+                updatePermissionMode(
                   normalizePermissionMode(event.target.value),
                 )
               }
@@ -184,7 +210,7 @@ export function Composer({
             </select>
             <button
               className="rounded-md border border-ink-600 px-3 py-2 text-xs font-semibold text-ink-100 disabled:opacity-50"
-              onClick={onStop}
+              onClick={() => void stopActiveTurn()}
               disabled={!running || !activeTurnId}
               type="button"
             >
@@ -192,7 +218,7 @@ export function Composer({
             </button>
             <button
               className="rounded-md bg-neon-500/90 px-4 py-2 text-xs font-semibold text-ink-900 disabled:opacity-50"
-              onClick={onSend}
+              onClick={() => void handleSend()}
               disabled={!selectedThreadId || running || !inputText.trim()}
               type="button"
             >

@@ -1,8 +1,8 @@
-type HeaderBarProps = {
-  wsConnected: boolean;
-};
+import { useConversationSelector } from "../modules/conversation/provider/useConversationSelector";
+import { selectWsConnected } from "../modules/conversation/store/selectors";
 
-export function HeaderBar({ wsConnected }: HeaderBarProps) {
+export function HeaderBar() {
+  const wsConnected = useConversationSelector(selectWsConnected);
   return (
     <header className="flex items-center justify-between rounded-2xl border border-ink-700 bg-ink-800/70 px-6 pb-3 pt-3 shadow-panel">
       <h1 className="flex flex-wrap items-baseline gap-3 text-ink-100">
