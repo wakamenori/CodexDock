@@ -20,7 +20,7 @@
     "format": "biome check --write .",
     "check": "pnpm format && pnpm typecheck && pnpm test",
     "typecheck": "tsgo --noEmit -p tsconfig.app.json && tsgo --noEmit -p tsconfig.server.json",
-    "test": "vitest --run"
+    "test": "vitest --run --silent"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",
