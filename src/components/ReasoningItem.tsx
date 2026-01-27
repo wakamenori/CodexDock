@@ -39,7 +39,7 @@ type ReasoningItemProps = {
 };
 
 export function ReasoningItem({ message }: ReasoningItemProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [showRaw, setShowRaw] = useState(false);
   const summary = message.summary ?? "";
   const content = message.content ?? "";
@@ -104,10 +104,7 @@ export function ReasoningItem({ message }: ReasoningItemProps) {
       {expanded && (
         <div className="mt-3 grid gap-3">
           {(summaryPartsDisplay.length > 0 || summary) && (
-            <div className="grid gap-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-ink-400">
-                summary
-              </p>
+            <div className="grid gap-1">
               {(summaryPartsDisplay.length > 0
                 ? summaryPartsDisplay
                 : summary
@@ -118,9 +115,6 @@ export function ReasoningItem({ message }: ReasoningItemProps) {
                   key={`summary-${message.id}-${index}`}
                   className="rounded-lg border border-ink-800 bg-ink-900/60 px-3 py-2"
                 >
-                  <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-ink-500">
-                    section {index + 1}
-                  </p>
                   <div className="text-xs text-ink-300 markdown">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {part}
