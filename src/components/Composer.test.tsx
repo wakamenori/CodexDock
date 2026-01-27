@@ -1,76 +1,90 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 // @vitest-environment jsdom
+import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ConversationState } from "../modules/conversation/store/state";
-import { initialConversationState } from "../modules/conversation/store/state";
 import { Composer } from "./Composer";
 
-const mockCommands = {
-  sendMessage: vi.fn().mockResolvedValue(undefined),
-  startReview: vi.fn().mockResolvedValue(undefined),
-  stopActiveTurn: vi.fn().mockResolvedValue(undefined),
-  updateModel: vi.fn().mockResolvedValue(undefined),
-  updatePermissionMode: vi.fn(),
+const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
+  const props: ComponentProps<typeof Composer> = {
+    inputText: "hello",
+    reviewTargetType: "uncommittedChanges",
+    reviewBaseBranch: "",
+    reviewCommitSha: "",
+    reviewCustomInstructions: "",
+    selectedThreadId: "thread-1",
+    running: false,
+    activeTurnId: null,
+    selectedModel: null,
+    availableModels: [],
+    permissionMode: "ReadOnly",
+    onInputTextChange: vi.fn(),
+    onReviewTargetTypeChange: vi.fn(),
+    onReviewBaseBranchChange: vi.fn(),
+    onReviewCommitShaChange: vi.fn(),
+    onReviewCustomInstructionsChange: vi.fn(),
+    onSend: vi.fn(),
+    onReviewStart: vi.fn(),
+    onStop: vi.fn(),
+    onModelChange: vi.fn(),
+    onPermissionModeChange: vi.fn(),
+    ...overrides,
+  };
+
+  render(<Composer {...props} />);
+  return props;
 };
-
-const mockState: ConversationState = {
-  ...initialConversationState,
-  focusedRepoId: "repo-1",
-  focusedThreadId: "thread-1",
-  activeTurnByThread: { "thread-1": "turn-1" },
-  threadStatusByThread: {
-    "thread-1": { processing: false, reviewing: false, unread: false },
-  },
-  availableModelsByRepo: { "repo-1": ["model-a"] },
-  modelSettings: {
-    storedModel: "model-a",
-    defaultModel: "model-a",
-    loaded: true,
-  },
-};
-
-vi.mock("../modules/conversation/provider/useConversationCommands", () => ({
-  useConversationCommands: () => mockCommands,
-}));
-
-vi.mock("../modules/conversation/provider/useConversationSelector", () => ({
-  useConversationSelector: (selector: (state: ConversationState) => unknown) =>
-    selector(mockState),
-}));
 
 describe("Composer", () => {
-  afterEach(() => {
-    cleanup();
-    vi.clearAllMocks();
-  });
+  afterEach(() => cleanup());
 
-  it("sends on Ctrl/Cmd+Enter", () => {
-    render(<Composer />);
+  it("sends only on Ctrl/Cmd+Enter", () => {
+    const props = setup();
     const input = screen.getByRole("textbox");
-    fireEvent.change(input, { target: { value: "hello" } });
 
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(mockCommands.sendMessage).not.toHaveBeenCalled();
+    expect(props.onSend).not.toHaveBeenCalled();
 
     fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
-    expect(mockCommands.sendMessage).toHaveBeenCalledTimes(1);
+    expect(props.onSend).toHaveBeenCalledTimes(1);
 
-    fireEvent.change(input, { target: { value: "hello again" } });
     fireEvent.keyDown(input, { key: "Enter", metaKey: true });
-    expect(mockCommands.sendMessage).toHaveBeenCalledTimes(2);
+    expect(props.onSend).toHaveBeenCalledTimes(2);
   });
 
-  it("disables stop button when idle", () => {
-    render(<Composer />);
-    const stop = screen.getByRole("button", { name: "Stop" });
-    expect((stop as HTMLButtonElement).disabled).toBe(true);
+  it("does not send while composing", () => {
+    const props = setup();
+    const input = screen.getByRole("textbox");
+
+    fireEvent.keyDown(input, {
+      key: "Enter",
+      ctrlKey: true,
+      isComposing: true,
+    });
+    expect(props.onSend).not.toHaveBeenCalled();
   });
 
-  it("starts review when review data is present", () => {
-    render(<Composer />);
+  it("shows stop button and disables it when not running", () => {
+    setup({ running: false });
+    const stopWhenIdle = screen.getByRole("button", { name: "Stop" });
+    expect((stopWhenIdle as HTMLButtonElement).disabled).toBe(true);
+
+    cleanup();
+    setup({ running: true, activeTurnId: "turn-1" });
+    const stopWhenRunning = screen.getByRole("button", { name: "Stop" });
+    expect((stopWhenRunning as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("disables review when target details are missing", () => {
+    setup({ reviewTargetType: "baseBranch", reviewBaseBranch: "" });
+    const reviewButton = screen.getByRole("button", { name: "Review" });
+    expect((reviewButton as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("starts review on click when enabled", () => {
+    const props = setup();
     const reviewButton = screen.getByRole("button", { name: "Review" });
     fireEvent.click(reviewButton);
-    expect(mockCommands.startReview).toHaveBeenCalledTimes(1);
+    expect(props.onReviewStart).toHaveBeenCalledTimes(1);
   });
 });

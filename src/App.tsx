@@ -2,19 +2,93 @@ import { Toaster } from "sonner";
 import { HeaderBar } from "./components/HeaderBar";
 import { MainPanel } from "./components/MainPanel";
 import { Sidebar } from "./components/Sidebar";
-import { ConversationProvider } from "./modules/conversation/provider/ConversationProvider";
+import { useConversationState } from "./modules/conversation/ui/useConversationState";
 
 export default function App() {
+  const {
+    repoGroups,
+    threadUiStatusByThread,
+    selectedRepoId,
+    selectedRepo,
+    selectedThreadId,
+    wsConnected,
+    running,
+    activeTurnId,
+    messages,
+    fileChanges,
+    approvals,
+    inputText,
+    reviewTargetType,
+    reviewBaseBranch,
+    reviewCommitSha,
+    reviewCustomInstructions,
+    selectedModel,
+    availableModels,
+    permissionMode,
+    selectRepo,
+    setInputText,
+    setReviewTargetType,
+    setReviewBaseBranch,
+    setReviewCommitSha,
+    setReviewCustomInstructions,
+    handleAddRepo,
+    handleCreateThread,
+    handleSelectThread,
+    handleModelChange,
+    handlePermissionModeChange,
+    handleApprove,
+    handleSend,
+    handleReviewStart,
+    handleStop,
+  } = useConversationState();
+
   return (
-    <ConversationProvider>
-      <div className="h-screen flex flex-col gap-4 p-4 overflow-hidden">
-        <Toaster richColors theme="dark" position="top-right" />
-        <HeaderBar />
-        <div className="flex flex-1 min-h-0 gap-4">
-          <Sidebar />
-          <MainPanel />
-        </div>
+    <div className="h-screen flex flex-col gap-4 p-4 overflow-hidden">
+      <Toaster richColors theme="dark" position="top-right" />
+      <HeaderBar wsConnected={wsConnected} />
+      <div className="flex flex-1 min-h-0 gap-4">
+        <Sidebar
+          repoGroups={repoGroups}
+          threadUiStatusByThread={threadUiStatusByThread}
+          selectedRepoId={selectedRepoId}
+          running={running}
+          selectedThreadId={selectedThreadId}
+          onSelectRepo={selectRepo}
+          onAddRepo={handleAddRepo}
+          onCreateThread={handleCreateThread}
+          onSelectThread={handleSelectThread}
+        />
+        <MainPanel
+          selectedRepoName={selectedRepo?.name ?? null}
+          running={running}
+          activeTurnId={activeTurnId}
+          messages={messages}
+          fileChanges={fileChanges}
+          approvals={approvals}
+          inputText={inputText}
+          reviewTargetType={reviewTargetType}
+          reviewBaseBranch={reviewBaseBranch}
+          reviewCommitSha={reviewCommitSha}
+          reviewCustomInstructions={reviewCustomInstructions}
+          selectedThreadId={selectedThreadId}
+          selectedRepoId={selectedRepoId}
+          selectedRepoPath={selectedRepo?.path ?? null}
+          selectedModel={selectedModel}
+          availableModels={availableModels}
+          permissionMode={permissionMode}
+          onInputTextChange={(value) => setInputText(value)}
+          onReviewTargetTypeChange={setReviewTargetType}
+          onReviewBaseBranchChange={setReviewBaseBranch}
+          onReviewCommitShaChange={setReviewCommitSha}
+          onReviewCustomInstructionsChange={setReviewCustomInstructions}
+          onSend={handleSend}
+          onReviewStart={handleReviewStart}
+          onStop={handleStop}
+          onModelChange={handleModelChange}
+          onPermissionModeChange={handlePermissionModeChange}
+          onApprove={handleApprove}
+        />
       </div>
-    </ConversationProvider>
+    </div>
   );
 }
