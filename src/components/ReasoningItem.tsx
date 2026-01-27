@@ -53,10 +53,6 @@ export function ReasoningItem({ message }: ReasoningItemProps) {
   const contentText = contentPartsDisplay.length
     ? contentPartsDisplay.join("\n\n")
     : content;
-  const summaryCount =
-    summaryPartsRaw.length > 0 ? summaryPartsRaw.length : summary ? 1 : 0;
-  const contentCount =
-    contentPartsRaw.length > 0 ? contentPartsRaw.length : content ? 1 : 0;
   const { title, body } = useMemo(
     () => getTitleAndBody(summaryText, contentText),
     [summaryText, contentText],
@@ -85,15 +81,6 @@ export function ReasoningItem({ message }: ReasoningItemProps) {
             </svg>
           </span>
           <p className="text-sm font-semibold text-ink-100">{title}</p>
-        </div>
-        <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-ink-400">
-          {(summaryCount > 0 || contentCount > 0) && (
-            <span>
-              {summaryCount > 0 ? `summary ${summaryCount}` : "summary 0"}
-              {contentCount > 0 ? ` • raw ${contentCount}` : ""}
-            </span>
-          )}
-          <span>{expanded ? "hide" : "show"}</span>
         </div>
       </button>
       {!expanded && body && (
