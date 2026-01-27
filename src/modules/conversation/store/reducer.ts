@@ -54,11 +54,23 @@ export const reduceConversation = (
       };
     }
     case "threads/loaded": {
+      const existing = state.threadsByRepo[action.repoId] ?? [];
+      const focusedThreadId = state.focusedThreadId;
+      const incomingHasFocused =
+        focusedThreadId &&
+        action.threads.some((item) => item.threadId === focusedThreadId);
+      const shouldPreserveFocused =
+        focusedThreadId && !incomingHasFocused
+          ? (existing.find((item) => item.threadId === focusedThreadId) ?? null)
+          : null;
+      const nextThreads = shouldPreserveFocused
+        ? [...action.threads, shouldPreserveFocused]
+        : action.threads;
       return {
         ...state,
         threadsByRepo: {
           ...state.threadsByRepo,
-          [action.repoId]: action.threads,
+          [action.repoId]: nextThreads,
         },
       };
     }
