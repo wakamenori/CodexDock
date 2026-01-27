@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { ChatMessage } from "../types";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 
 const TITLE_LIMIT = 80;
 
@@ -85,7 +84,7 @@ export function ReasoningItem({ message }: ReasoningItemProps) {
       </button>
       {!expanded && body && (
         <div className="mt-3 text-xs text-ink-300 markdown reasoning-clamp">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+          <MarkdownRenderer>{body}</MarkdownRenderer>
         </div>
       )}
       {expanded && (
@@ -103,9 +102,7 @@ export function ReasoningItem({ message }: ReasoningItemProps) {
                   className="rounded-lg border border-ink-800 bg-ink-900/60 px-3 py-2"
                 >
                   <div className="text-xs text-ink-300 markdown">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {part}
-                    </ReactMarkdown>
+                    <MarkdownRenderer>{part}</MarkdownRenderer>
                   </div>
                 </div>
               ))}
@@ -138,9 +135,7 @@ export function ReasoningItem({ message }: ReasoningItemProps) {
                         block {index + 1}
                       </p>
                       <div className="text-xs text-ink-300 markdown">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {part}
-                        </ReactMarkdown>
+                        <MarkdownRenderer>{part}</MarkdownRenderer>
                       </div>
                     </div>
                   ))}

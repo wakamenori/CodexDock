@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { useAutoScroll } from "../hooks/useAutoScroll";
 import { toRelativePath } from "../shared/paths";
 import type { ChatMessage } from "../types";
 import { copyToClipboard } from "../utils/clipboard";
 import { DiffViewer } from "./DiffViewer";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import { ReasoningItem } from "./ReasoningItem";
 
 type ChatHistoryProps = {
@@ -201,9 +200,7 @@ export function ChatHistory({
                 </div>
               )}
               <div className="mt-2 text-sm leading-relaxed text-ink-200 markdown">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {message.text}
-                </ReactMarkdown>
+                <MarkdownRenderer>{message.text}</MarkdownRenderer>
               </div>
             </div>
           </div>

@@ -99,17 +99,27 @@ body {
   font-family:
     "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
-  background: rgba(36, 40, 59, 0.7);
-  padding: 0.1rem 0.35rem;
-  border-radius: 0.35rem;
-  font-size: 0.85em;
 }
 
-.markdown pre {
+.markdown :not(pre) > code {
+  background: rgba(26, 27, 38, 0.9);
+  border: 1px solid rgba(65, 72, 104, 0.6);
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.4rem;
+  font-size: 0.85em;
+  color: #7aa2f7;
+}
+
+.markdown .code-block {
+  position: relative;
+}
+
+.markdown .code-block pre {
   margin: 0;
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  background: rgba(15, 17, 26, 0.85);
+  padding: 0.9rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(65, 72, 104, 0.5);
+  background: #0f111a;
   overflow-x: auto;
 }
 
@@ -117,8 +127,97 @@ body {
   background: none;
   padding: 0;
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #c0caf5;
+}
+
+.markdown .code-copy {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(122, 162, 247, 0.4);
+  background: rgba(15, 17, 26, 0.85);
+  color: #a9b1d6;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+  pointer-events: none;
+}
+
+.markdown .code-block:hover .code-copy,
+.markdown .code-block:focus-within .code-copy {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.markdown .code-copy:hover {
+  border-color: rgba(122, 162, 247, 0.7);
+  color: #c0caf5;
+}
+
+.markdown .hljs {
+  color: #c0caf5;
+  background: transparent;
+}
+
+.markdown .hljs-comment,
+.markdown .hljs-quote {
+  color: #565f89;
+  font-style: italic;
+}
+
+.markdown .hljs-keyword,
+.markdown .hljs-selector-tag,
+.markdown .hljs-literal,
+.markdown .hljs-strong,
+.markdown .hljs-name {
+  color: #7aa2f7;
+}
+
+.markdown .hljs-string,
+.markdown .hljs-section,
+.markdown .hljs-attribute,
+.markdown .hljs-template-tag {
+  color: #9ece6a;
+}
+
+.markdown .hljs-title,
+.markdown .hljs-function,
+.markdown .hljs-built_in {
+  color: #bb9af7;
+}
+
+.markdown .hljs-number,
+.markdown .hljs-symbol,
+.markdown .hljs-bullet {
+  color: #ff9e64;
+}
+
+.markdown .hljs-meta,
+.markdown .hljs-meta-keyword {
   color: #7dcfff;
+}
+
+.markdown .hljs-type,
+.markdown .hljs-class .hljs-title {
+  color: #2ac3de;
+}
+
+.markdown .hljs-doctag,
+.markdown .hljs-operator,
+.markdown .hljs-punctuation {
+  color: #e0af68;
 }
 
 .markdown blockquote {
