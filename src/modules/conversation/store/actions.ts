@@ -54,6 +54,8 @@ export type ConversationAction =
       itemId: string;
       summary: string;
       content: string;
+      summaryParts?: string[];
+      contentParts?: string[];
     }
   | {
       type: "reasoning/delta";
@@ -61,6 +63,14 @@ export type ConversationAction =
       itemId: string;
       deltaText: string;
       isSummary: boolean;
+      summaryIndex?: number;
+      contentIndex?: number;
+    }
+  | {
+      type: "reasoning/summaryPartAdded";
+      threadId: string;
+      itemId: string;
+      summaryIndex: number;
     }
   | { type: "diff/updated"; threadId: string; turnId: string; diffText: string }
   | {

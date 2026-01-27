@@ -120,6 +120,8 @@ export type ChatMessage = {
   pending?: boolean;
   summary?: string;
   content?: string;
+  summaryParts?: string[];
+  contentParts?: string[];
   approval?: ApprovalMessage;
 };
 

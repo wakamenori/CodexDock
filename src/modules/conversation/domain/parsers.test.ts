@@ -6,7 +6,9 @@ import {
   buildMessagesFromResume,
   deriveReviewingFromResume,
   normalizeReasoningContent,
+  normalizeReasoningContentParts,
   normalizeReasoningSummary,
+  normalizeReasoningSummaryParts,
   normalizeRootPath,
   parseAgentMessageText,
   parseDeltaText,
@@ -16,6 +18,8 @@ import {
   parseFileChangeTurnId,
   parseItemId,
   parseItemRecord,
+  parseReasoningContentIndex,
+  parseReasoningSummaryIndex,
   parseThreadId,
   parseTurnId,
   parseUserMessageText,
@@ -41,6 +45,15 @@ describe("normalizeReasoning*", () => {
     const base = "a".repeat(19999);
     expect(appendReasoningContent(base, "b")).toHaveLength(20000);
   });
+
+  it("normalizes reasoning parts within limits", () => {
+    const parts = ["a".repeat(3999), "b".repeat(10)];
+    const normalizedSummary = normalizeReasoningSummaryParts(parts);
+    expect(normalizedSummary.join("\n\n").length).toBeLessThanOrEqual(4000);
+    const contentParts = ["c".repeat(19999), "d".repeat(10)];
+    const normalizedContent = normalizeReasoningContentParts(contentParts);
+    expect(normalizedContent.join("\n\n").length).toBeLessThanOrEqual(20000);
+  });
 });
 
 describe("parseThreadId / parseTurnId", () => {
@@ -64,6 +77,13 @@ describe("parseDeltaText", () => {
 
   it("falls back to message field", () => {
     expect(parseDeltaText({ message: "hi" })).toBe("hi");
+  });
+});
+
+describe("parseReasoning*Index", () => {
+  it("reads summaryIndex/contentIndex", () => {
+    expect(parseReasoningSummaryIndex({ summaryIndex: 2 })).toBe(2);
+    expect(parseReasoningContentIndex({ contentIndex: 3 })).toBe(3);
   });
 });
 
@@ -141,6 +161,8 @@ describe("buildMessagesFromResume", () => {
     expect(messages[0].text).toBe("hi");
     expect(messages[2].summary).toBe("s");
     expect(messages[2].content).toBe("c");
+    expect(messages[2].summaryParts).toEqual(["s"]);
+    expect(messages[2].contentParts).toEqual(["c"]);
   });
 
   it("joins reasoning summary/content arrays", () => {
@@ -165,6 +187,8 @@ describe("buildMessagesFromResume", () => {
     const messages = buildMessagesFromResume("t", payload);
     expect(messages[0].summary).toBe("a\n\nb");
     expect(messages[0].content).toBe("c\n\nd");
+    expect(messages[0].summaryParts).toEqual(["a", "b"]);
+    expect(messages[0].contentParts).toEqual(["c", "d"]);
   });
 
   it("includes assistant messages even when review markers are present", () => {

@@ -3,6 +3,7 @@ import {
   applyDiffUpdate,
   applyFileChangeUpdate,
   applyReasoningStart,
+  applyReasoningSummaryPartAdded,
   applyUserMessageStart,
   removeApproval,
   upsertAgentDelta,
@@ -219,6 +220,8 @@ export const reduceConversation = (
             action.itemId,
             action.summary,
             action.content,
+            action.summaryParts,
+            action.contentParts,
           ),
         },
       };
@@ -234,6 +237,22 @@ export const reduceConversation = (
             action.itemId,
             action.deltaText,
             action.isSummary,
+            action.summaryIndex,
+            action.contentIndex,
+          ),
+        },
+      };
+    }
+    case "reasoning/summaryPartAdded": {
+      const list = state.messagesByThread[action.threadId] ?? [];
+      return {
+        ...state,
+        messagesByThread: {
+          ...state.messagesByThread,
+          [action.threadId]: applyReasoningSummaryPartAdded(
+            list,
+            action.itemId,
+            action.summaryIndex,
           ),
         },
       };

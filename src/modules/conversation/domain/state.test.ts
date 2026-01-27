@@ -10,6 +10,7 @@ import {
   applyDiffUpdate,
   applyFileChangeUpdate,
   applyReasoningStart,
+  applyReasoningSummaryPartAdded,
   applyUserMessageStart,
   removeApproval,
   upsertAgentDelta,
@@ -45,15 +46,30 @@ describe("upsertAgentDelta", () => {
 describe("upsertReasoningDelta", () => {
   it("appends summary delta", () => {
     const list = [
-      baseMsg({ id: "r", role: "reasoning", summary: "a", content: "" }),
+      baseMsg({
+        id: "r",
+        role: "reasoning",
+        summary: "a",
+        content: "",
+        summaryParts: ["a"],
+      }),
     ];
-    const updated = upsertReasoningDelta(list, "r", "b", true);
+    const updated = upsertReasoningDelta(list, "r", "b", true, 0);
     expect(updated[0].summary).toBe("ab");
+    expect(updated[0].summaryParts).toEqual(["ab"]);
   });
 
   it("appends content delta when no summary", () => {
-    const updated = upsertReasoningDelta([], "r2", "delta", false);
+    const updated = upsertReasoningDelta(
+      [],
+      "r2",
+      "delta",
+      false,
+      undefined,
+      0,
+    );
     expect(updated[0].content).toBe("delta");
+    expect(updated[0].contentParts).toEqual(["delta"]);
   });
 });
 
@@ -95,12 +111,28 @@ describe("applyAgentMessageStart", () => {
 
 describe("applyReasoningStart", () => {
   it("creates reasoning entry with normalized summary/content", () => {
-    const updated = applyReasoningStart([], "r1", "s", "c");
+    const updated = applyReasoningStart(
+      [],
+      "r1",
+      "s",
+      "c",
+      ["s1", "s2"],
+      ["c1"],
+    );
     expect(updated[0]).toMatchObject({
       role: "reasoning",
-      summary: "s",
-      content: "c",
+      summary: "s1\n\ns2",
+      content: "c1",
+      summaryParts: ["s1", "s2"],
+      contentParts: ["c1"],
     });
+  });
+});
+
+describe("applyReasoningSummaryPartAdded", () => {
+  it("expands summary parts based on index", () => {
+    const updated = applyReasoningSummaryPartAdded([], "r1", 1);
+    expect(updated[0].summaryParts).toHaveLength(2);
   });
 });
 

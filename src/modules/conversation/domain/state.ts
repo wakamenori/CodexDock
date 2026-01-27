@@ -5,10 +5,11 @@ import type {
   FileChangeEntry,
 } from "../../../types";
 import {
-  appendReasoningContent,
-  appendReasoningSummary,
+  joinReasoningParts,
   normalizeReasoningContent,
+  normalizeReasoningContentParts,
   normalizeReasoningSummary,
+  normalizeReasoningSummaryParts,
 } from "./parsers";
 
 const now = () => Date.now();
@@ -22,6 +23,36 @@ const preferExistingText = (
   incoming: string | undefined,
   existing: string,
 ): string => (incoming && incoming.length > 0 ? incoming : existing);
+
+const ensurePartIndex = (parts: string[], index: number): string[] => {
+  const next = [...parts];
+  while (next.length <= index) {
+    next.push("");
+  }
+  return next;
+};
+
+const appendPartDelta = (
+  parts: string[],
+  index: number,
+  deltaText: string,
+): string[] => {
+  const next = ensurePartIndex(parts, index);
+  next[index] = `${next[index] ?? ""}${deltaText}`;
+  return next;
+};
+
+const buildReasoningText = (
+  parts: string[],
+  fallback: string | undefined,
+  normalizer: (value: string) => string,
+): string => {
+  const joined = joinReasoningParts(parts);
+  return normalizer(joined || fallback || "");
+};
+
+const getFallbackParts = (fallbackText: string | undefined): string[] =>
+  fallbackText ? [fallbackText] : [];
 
 export const upsertAgentDelta = (
   messages: ChatMessage[],
@@ -56,19 +87,46 @@ export const upsertReasoningDelta = (
   itemId: string,
   deltaText: string,
   isSummaryDelta: boolean,
+  summaryIndex?: number,
+  contentIndex?: number,
 ): ChatMessage[] => {
   const list = clone(messages);
   const idx = findByItemId(list, itemId);
   const existing =
     idx >= 0 && list[idx].role === "reasoning" ? list[idx] : undefined;
-  const summary = existing?.summary ?? "";
-  const content = existing?.content ?? "";
-  const nextSummary = isSummaryDelta
-    ? appendReasoningSummary(summary, deltaText)
-    : normalizeReasoningSummary(summary);
-  const nextContent = isSummaryDelta
-    ? normalizeReasoningContent(content)
-    : appendReasoningContent(content, deltaText);
+  const summaryPartsBase =
+    existing?.summaryParts ?? getFallbackParts(existing?.summary);
+  const contentPartsBase =
+    existing?.contentParts ?? getFallbackParts(existing?.content);
+
+  const resolvedSummaryIndex =
+    summaryIndex ??
+    (summaryPartsBase.length > 0 ? summaryPartsBase.length - 1 : 0);
+  const resolvedContentIndex =
+    contentIndex ??
+    (contentPartsBase.length > 0 ? contentPartsBase.length - 1 : 0);
+
+  const updatedSummaryParts = isSummaryDelta
+    ? normalizeReasoningSummaryParts(
+        appendPartDelta(summaryPartsBase, resolvedSummaryIndex, deltaText),
+      )
+    : normalizeReasoningSummaryParts(summaryPartsBase);
+  const updatedContentParts = isSummaryDelta
+    ? normalizeReasoningContentParts(contentPartsBase)
+    : normalizeReasoningContentParts(
+        appendPartDelta(contentPartsBase, resolvedContentIndex, deltaText),
+      );
+
+  const nextSummary = buildReasoningText(
+    updatedSummaryParts,
+    existing?.summary,
+    normalizeReasoningSummary,
+  );
+  const nextContent = buildReasoningText(
+    updatedContentParts,
+    existing?.content,
+    normalizeReasoningContent,
+  );
   const entry: ChatMessage = {
     id: itemId,
     itemId,
@@ -76,6 +134,8 @@ export const upsertReasoningDelta = (
     text: "",
     summary: nextSummary,
     content: nextContent,
+    summaryParts: updatedSummaryParts,
+    contentParts: updatedContentParts,
     createdAt: existing?.createdAt ?? now(),
   };
   if (idx >= 0) {
@@ -158,6 +218,8 @@ export const applyReasoningStart = (
   itemId: string,
   summary: string,
   content: string,
+  summaryParts?: string[],
+  contentParts?: string[],
 ): ChatMessage[] => {
   const list = clone(messages);
   const existingIdx = findByItemId(list, itemId);
@@ -165,17 +227,77 @@ export const applyReasoningStart = (
     existingIdx >= 0 && list[existingIdx].role === "reasoning"
       ? list[existingIdx]
       : undefined;
+  const normalizedSummaryParts = normalizeReasoningSummaryParts(
+    summaryParts ?? getFallbackParts(summary || existing?.summary),
+  );
+  const normalizedContentParts = normalizeReasoningContentParts(
+    contentParts ?? getFallbackParts(content || existing?.content),
+  );
   const entry: ChatMessage = {
     id: itemId,
     itemId,
     role: "reasoning",
     text: "",
-    summary: normalizeReasoningSummary(summary || existing?.summary || ""),
-    content: normalizeReasoningContent(content || existing?.content || ""),
+    summary: buildReasoningText(
+      normalizedSummaryParts,
+      summary || existing?.summary,
+      normalizeReasoningSummary,
+    ),
+    content: buildReasoningText(
+      normalizedContentParts,
+      content || existing?.content,
+      normalizeReasoningContent,
+    ),
+    summaryParts: normalizedSummaryParts,
+    contentParts: normalizedContentParts,
     createdAt: existing?.createdAt ?? now(),
   };
   if (existingIdx >= 0) {
     list[existingIdx] = entry;
+  } else {
+    list.push(entry);
+  }
+  return list;
+};
+
+export const applyReasoningSummaryPartAdded = (
+  messages: ChatMessage[],
+  itemId: string,
+  summaryIndex: number,
+): ChatMessage[] => {
+  const list = clone(messages);
+  const idx = findByItemId(list, itemId);
+  const existing =
+    idx >= 0 && list[idx].role === "reasoning" ? list[idx] : undefined;
+  const summaryPartsBase =
+    existing?.summaryParts ?? getFallbackParts(existing?.summary);
+  const nextSummaryParts = normalizeReasoningSummaryParts(
+    ensurePartIndex(summaryPartsBase, summaryIndex),
+  );
+  const contentParts = normalizeReasoningContentParts(
+    existing?.contentParts ?? getFallbackParts(existing?.content),
+  );
+  const entry: ChatMessage = {
+    id: itemId,
+    itemId,
+    role: "reasoning",
+    text: "",
+    summary: buildReasoningText(
+      nextSummaryParts,
+      existing?.summary,
+      normalizeReasoningSummary,
+    ),
+    content: buildReasoningText(
+      contentParts,
+      existing?.content,
+      normalizeReasoningContent,
+    ),
+    summaryParts: nextSummaryParts,
+    contentParts,
+    createdAt: existing?.createdAt ?? now(),
+  };
+  if (idx >= 0) {
+    list[idx] = entry;
   } else {
     list.push(entry);
   }

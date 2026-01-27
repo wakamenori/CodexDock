@@ -40,11 +40,26 @@ type ReasoningItemProps = {
 
 export function ReasoningItem({ message }: ReasoningItemProps) {
   const [expanded, setExpanded] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
   const summary = message.summary ?? "";
   const content = message.content ?? "";
+  const summaryPartsRaw = message.summaryParts ?? [];
+  const contentPartsRaw = message.contentParts ?? [];
+  const summaryPartsDisplay = summaryPartsRaw.filter((part) => part.trim());
+  const contentPartsDisplay = contentPartsRaw.filter((part) => part.trim());
+  const summaryText = summaryPartsDisplay.length
+    ? summaryPartsDisplay.join("\n\n")
+    : summary;
+  const contentText = contentPartsDisplay.length
+    ? contentPartsDisplay.join("\n\n")
+    : content;
+  const summaryCount =
+    summaryPartsRaw.length > 0 ? summaryPartsRaw.length : summary ? 1 : 0;
+  const contentCount =
+    contentPartsRaw.length > 0 ? contentPartsRaw.length : content ? 1 : 0;
   const { title, body } = useMemo(
-    () => getTitleAndBody(summary, content),
-    [summary, content],
+    () => getTitleAndBody(summaryText, contentText),
+    [summaryText, contentText],
   );
 
   return (
@@ -71,17 +86,87 @@ export function ReasoningItem({ message }: ReasoningItemProps) {
           </span>
           <p className="text-sm font-semibold text-ink-100">{title}</p>
         </div>
-        <span className="text-[10px] uppercase tracking-[0.2em] text-ink-400">
-          {expanded ? "hide" : "show"}
-        </span>
+        <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-ink-400">
+          {(summaryCount > 0 || contentCount > 0) && (
+            <span>
+              {summaryCount > 0 ? `summary ${summaryCount}` : "summary 0"}
+              {contentCount > 0 ? ` • raw ${contentCount}` : ""}
+            </span>
+          )}
+          <span>{expanded ? "hide" : "show"}</span>
+        </div>
       </button>
-      {body && (
-        <div
-          className={`mt-3 text-xs text-ink-300 markdown ${
-            expanded ? "" : "reasoning-clamp"
-          }`}
-        >
+      {!expanded && body && (
+        <div className="mt-3 text-xs text-ink-300 markdown reasoning-clamp">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+        </div>
+      )}
+      {expanded && (
+        <div className="mt-3 grid gap-3">
+          {(summaryPartsDisplay.length > 0 || summary) && (
+            <div className="grid gap-2">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-ink-400">
+                summary
+              </p>
+              {(summaryPartsDisplay.length > 0
+                ? summaryPartsDisplay
+                : summary
+                  ? [summary]
+                  : []
+              ).map((part, index) => (
+                <div
+                  key={`summary-${message.id}-${index}`}
+                  className="rounded-lg border border-ink-800 bg-ink-900/60 px-3 py-2"
+                >
+                  <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-ink-500">
+                    section {index + 1}
+                  </p>
+                  <div className="text-xs text-ink-300 markdown">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {part}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {(contentPartsDisplay.length > 0 || content) && (
+            <div className="grid gap-2">
+              <button
+                type="button"
+                className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900/60 px-3 py-2 text-left text-[10px] uppercase tracking-[0.2em] text-ink-400"
+                onClick={() => setShowRaw((current) => !current)}
+                aria-expanded={showRaw}
+              >
+                <span>raw reasoning</span>
+                <span>{showRaw ? "hide" : "show"}</span>
+              </button>
+              {showRaw && (
+                <div className="grid gap-2">
+                  {(contentPartsDisplay.length > 0
+                    ? contentPartsDisplay
+                    : content
+                      ? [content]
+                      : []
+                  ).map((part, index) => (
+                    <div
+                      key={`content-${message.id}-${index}`}
+                      className="rounded-lg border border-ink-800 bg-ink-900/50 px-3 py-2"
+                    >
+                      <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-ink-500">
+                        block {index + 1}
+                      </p>
+                      <div className="text-xs text-ink-300 markdown">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {part}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

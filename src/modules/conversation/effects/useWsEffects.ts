@@ -18,8 +18,6 @@ import {
   outcomeFromStatus,
 } from "../domain/approval";
 import {
-  appendReasoningContent,
-  appendReasoningSummary,
   createRequestId,
   parseAgentMessageText,
   parseDeltaText,
@@ -29,6 +27,9 @@ import {
   parseFileChangeTurnId,
   parseItemId,
   parseItemRecord,
+  parseReasoningContentIndex,
+  parseReasoningItemParts,
+  parseReasoningSummaryIndex,
   parseThreadId,
   parseTurnId,
   parseUserMessageText,
@@ -187,12 +188,34 @@ export const useWsEffects = (store: ConversationStore): WsEffects => {
         const itemId = parseItemId(params, `${method}-${Date.now()}`);
         const deltaText = parseDeltaText(params);
         if (!deltaText) return;
+        const isSummary = method === "item/reasoning/summaryTextDelta";
+        const summaryIndex = isSummary
+          ? parseReasoningSummaryIndex(params)
+          : undefined;
+        const contentIndex = !isSummary
+          ? parseReasoningContentIndex(params)
+          : undefined;
         store.dispatch({
           type: "reasoning/delta",
           threadId,
           itemId,
           deltaText,
-          isSummary: method === "item/reasoning/summaryTextDelta",
+          isSummary,
+          summaryIndex,
+          contentIndex,
+        });
+        return;
+      }
+
+      if (method === "item/reasoning/summaryPartAdded") {
+        const itemId = parseItemId(params, `${method}-${Date.now()}`);
+        const summaryIndex = parseReasoningSummaryIndex(params);
+        if (summaryIndex === undefined) return;
+        store.dispatch({
+          type: "reasoning/summaryPartAdded",
+          threadId,
+          itemId,
+          summaryIndex,
         });
         return;
       }
@@ -229,16 +252,16 @@ export const useWsEffects = (store: ConversationStore): WsEffects => {
         }
 
         if (itemType === "reasoning") {
-          const summaryFromItem =
-            typeof item.summary === "string" ? item.summary : "";
-          const contentFromItem =
-            typeof item.content === "string" ? item.content : "";
+          const { summaryParts, contentParts, summaryText, contentText } =
+            parseReasoningItemParts(item);
           store.dispatch({
             type: "reasoning/started",
             threadId,
             itemId,
-            summary: appendReasoningSummary("", summaryFromItem),
-            content: appendReasoningContent("", contentFromItem),
+            summary: summaryText,
+            content: contentText,
+            summaryParts,
+            contentParts,
           });
         }
 

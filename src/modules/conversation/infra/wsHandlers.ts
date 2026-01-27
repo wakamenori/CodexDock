@@ -9,8 +9,6 @@ import type {
   WsInboundMessage,
 } from "../../../types";
 import {
-  appendReasoningContent,
-  appendReasoningSummary,
   parseAgentMessageText,
   parseDeltaText,
   parseDiffText,
@@ -19,6 +17,9 @@ import {
   parseFileChangeTurnId,
   parseItemId,
   parseItemRecord,
+  parseReasoningContentIndex,
+  parseReasoningItemParts,
+  parseReasoningSummaryIndex,
   parseThreadId,
   parseTurnId,
   parseUserMessageText,
@@ -28,6 +29,7 @@ import {
   applyDiffUpdate,
   applyFileChangeUpdate,
   applyReasoningStart,
+  applyReasoningSummaryPartAdded,
   applyUserMessageStart,
   upsertAgentDelta,
   upsertReasoningDelta,
@@ -117,8 +119,31 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
       const deltaText = parseDeltaText(params);
       if (!deltaText) return;
       const isSummaryDelta = method === "item/reasoning/summaryTextDelta";
+      const summaryIndex = isSummaryDelta
+        ? parseReasoningSummaryIndex(params)
+        : undefined;
+      const contentIndex = !isSummaryDelta
+        ? parseReasoningContentIndex(params)
+        : undefined;
       store.updateMessages(threadId, (list) =>
-        upsertReasoningDelta(list, itemId, deltaText, isSummaryDelta),
+        upsertReasoningDelta(
+          list,
+          itemId,
+          deltaText,
+          isSummaryDelta,
+          summaryIndex,
+          contentIndex,
+        ),
+      );
+      return;
+    }
+
+    if (method === "item/reasoning/summaryPartAdded") {
+      const itemId = parseItemId(params, `${method}-${Date.now()}`);
+      const summaryIndex = parseReasoningSummaryIndex(params);
+      if (summaryIndex === undefined) return;
+      store.updateMessages(threadId, (list) =>
+        applyReasoningSummaryPartAdded(list, itemId, summaryIndex),
       );
       return;
     }
@@ -146,16 +171,16 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
       }
 
       if (itemType === "reasoning") {
-        const summaryFromItem =
-          typeof item.summary === "string" ? item.summary : "";
-        const contentFromItem =
-          typeof item.content === "string" ? item.content : "";
+        const { summaryParts, contentParts, summaryText, contentText } =
+          parseReasoningItemParts(item);
         store.updateMessages(threadId, (list) =>
           applyReasoningStart(
             list,
             itemId,
-            appendReasoningSummary("", summaryFromItem),
-            appendReasoningContent("", contentFromItem),
+            summaryText,
+            contentText,
+            summaryParts,
+            contentParts,
           ),
         );
       }
