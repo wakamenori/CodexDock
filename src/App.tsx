@@ -18,11 +18,19 @@ export default function App() {
     fileChanges,
     approvals,
     inputText,
+    reviewTargetType,
+    reviewBaseBranch,
+    reviewCommitSha,
+    reviewCustomInstructions,
     selectedModel,
     availableModels,
     permissionMode,
     selectRepo,
     setInputText,
+    setReviewTargetType,
+    setReviewBaseBranch,
+    setReviewCommitSha,
+    setReviewCustomInstructions,
     handleAddRepo,
     handleCreateThread,
     handleSelectThread,
@@ -30,6 +38,7 @@ export default function App() {
     handlePermissionModeChange,
     handleApprove,
     handleSend,
+    handleReviewStart,
     handleStop,
   } = useConversationState();
 
@@ -57,6 +66,10 @@ export default function App() {
           fileChanges={fileChanges}
           approvals={approvals}
           inputText={inputText}
+          reviewTargetType={reviewTargetType}
+          reviewBaseBranch={reviewBaseBranch}
+          reviewCommitSha={reviewCommitSha}
+          reviewCustomInstructions={reviewCustomInstructions}
           selectedThreadId={selectedThreadId}
           selectedRepoId={selectedRepoId}
           selectedRepoPath={selectedRepo?.path ?? null}
@@ -64,7 +77,12 @@ export default function App() {
           availableModels={availableModels}
           permissionMode={permissionMode}
           onInputTextChange={(value) => setInputText(value)}
+          onReviewTargetTypeChange={setReviewTargetType}
+          onReviewBaseBranchChange={setReviewBaseBranch}
+          onReviewCommitShaChange={setReviewCommitSha}
+          onReviewCustomInstructionsChange={setReviewCustomInstructions}
           onSend={handleSend}
+          onReviewStart={handleReviewStart}
           onStop={handleStop}
           onModelChange={handleModelChange}
           onPermissionModeChange={handlePermissionModeChange}

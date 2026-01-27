@@ -1,6 +1,7 @@
 import type {
   PermissionMode,
   Repo,
+  ReviewTarget,
   ThreadSummary,
   TurnStartOptions,
 } from "./types";
@@ -137,6 +138,30 @@ export const api = {
       body: JSON.stringify({ threadId, input, options }),
     });
     return data.turn;
+  },
+  async startReview(
+    repoId: string,
+    threadId: string,
+    target: ReviewTarget,
+    delivery: "inline" | "detached" = "inline",
+  ): Promise<{
+    turnId: string;
+    status: string;
+    reviewThreadId: string | null;
+  }> {
+    const data = await requestJson<{
+      turn: { turnId: string; status: string };
+      reviewThreadId?: string | null;
+    }>(`/api/repos/${repoId}/reviews`, {
+      method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify({ threadId, target, delivery }),
+    });
+    return {
+      turnId: data.turn.turnId,
+      status: data.turn.status,
+      reviewThreadId: data.reviewThreadId ?? null,
+    };
   },
   async cancelTurn(
     repoId: string,

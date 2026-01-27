@@ -12,6 +12,8 @@ import type {
   JsonValue,
   PermissionMode,
   Repo,
+  ReviewTarget,
+  ReviewTargetType,
   SessionStatus,
   ThreadStatusFlags,
   ThreadSummary,
@@ -64,11 +66,19 @@ export type UseAppStateResult = {
   fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
   inputText: string;
+  reviewTargetType: ReviewTargetType;
+  reviewBaseBranch: string;
+  reviewCommitSha: string;
+  reviewCustomInstructions: string;
   selectedModel: string | null;
   availableModels: string[] | undefined;
   permissionMode: PermissionMode;
   selectRepo: (repoId: string | null) => void;
   setInputText: (value: string) => void;
+  setReviewTargetType: (value: ReviewTargetType) => void;
+  setReviewBaseBranch: (value: string) => void;
+  setReviewCommitSha: (value: string) => void;
+  setReviewCustomInstructions: (value: string) => void;
   handleAddRepo: () => Promise<void>;
   handleCreateThread: (targetRepoId?: string | null) => Promise<void>;
   handleSelectThread: (repoId: string, threadId: string) => Promise<void>;
@@ -80,6 +90,7 @@ export type UseAppStateResult = {
     decision: "accept" | "decline",
   ) => void;
   handleSend: () => Promise<void>;
+  handleReviewStart: () => Promise<void>;
   handleStop: () => Promise<void>;
 };
 
@@ -210,6 +221,11 @@ export const useConversationState = (): UseAppStateResult => {
   const [permissionMode, setPermissionMode] =
     useState<PermissionMode>("ReadOnly");
   const [inputText, setInputText] = useState("");
+  const [reviewTargetType, setReviewTargetType] =
+    useState<ReviewTargetType>("uncommittedChanges");
+  const [reviewBaseBranch, setReviewBaseBranch] = useState("");
+  const [reviewCommitSha, setReviewCommitSha] = useState("");
+  const [reviewCustomInstructions, setReviewCustomInstructions] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedRepoRef = useRef<Set<string>>(new Set());
@@ -850,10 +866,11 @@ export const useConversationState = (): UseAppStateResult => {
             preferred,
             resumeResult,
           );
+          const reviewing = deriveReviewingFromResume(resumeResult);
           setThreadMessages(preferred, resumeMessages);
           updateThreadStatus(preferred, (status) => ({
             ...status,
-            reviewing: deriveReviewingFromResume(resumeResult),
+            reviewing,
             processing: false,
           }));
           await api.updateRepo(selectedRepoId, {
@@ -1054,6 +1071,71 @@ export const useConversationState = (): UseAppStateResult => {
     updateThreadStatus,
   ]);
 
+  const buildReviewTarget = useCallback((): ReviewTarget | null => {
+    if (reviewTargetType === "uncommittedChanges") {
+      return { type: "uncommittedChanges" };
+    }
+    if (reviewTargetType === "baseBranch") {
+      const branch = reviewBaseBranch.trim();
+      if (!branch) return null;
+      return { type: "baseBranch", branch };
+    }
+    if (reviewTargetType === "commit") {
+      const sha = reviewCommitSha.trim();
+      if (!sha) return null;
+      return { type: "commit", sha };
+    }
+    if (reviewTargetType === "custom") {
+      const instructions = reviewCustomInstructions.trim();
+      if (!instructions) return null;
+      return { type: "custom", instructions };
+    }
+    return null;
+  }, [
+    reviewBaseBranch,
+    reviewCommitSha,
+    reviewCustomInstructions,
+    reviewTargetType,
+  ]);
+
+  const handleReviewStart = useCallback(async () => {
+    if (!selectedRepoId || !selectedThreadId) return;
+    if (running) return;
+    const target = buildReviewTarget();
+    if (!target) {
+      toast.error("Review target is not set");
+      return;
+    }
+    updateThreadStatus(selectedThreadId, (status) => ({
+      ...status,
+      processing: true,
+    }));
+    try {
+      const result = await api.startReview(
+        selectedRepoId,
+        selectedThreadId,
+        target,
+        "inline",
+      );
+      setActiveTurnByThread((prev) => ({
+        ...prev,
+        [selectedThreadId]: result.turnId,
+      }));
+    } catch (error) {
+      updateThreadStatus(selectedThreadId, (status) => ({
+        ...status,
+        processing: false,
+      }));
+      toast.error(error instanceof Error ? error.message : "Review failed");
+    }
+  }, [
+    buildReviewTarget,
+    running,
+    selectedRepoId,
+    selectedThreadId,
+    updateThreadStatus,
+  ]);
+
   const handleStop = useCallback(async () => {
     if (!selectedRepoId || !selectedThreadId) return;
     const turnId = activeTurnByThread[selectedThreadId];
@@ -1151,10 +1233,11 @@ export const useConversationState = (): UseAppStateResult => {
       try {
         const resumeResult = await api.resumeThread(repoId, threadId);
         const resumeMessages = buildMessagesFromResume(threadId, resumeResult);
+        const reviewing = deriveReviewingFromResume(resumeResult);
         setThreadMessages(threadId, resumeMessages);
         updateThreadStatus(threadId, (status) => ({
           ...status,
-          reviewing: deriveReviewingFromResume(resumeResult),
+          reviewing,
           processing: false,
         }));
         await api.updateRepo(repoId, { lastOpenedThreadId: threadId });
@@ -1206,11 +1289,19 @@ export const useConversationState = (): UseAppStateResult => {
     fileChanges,
     approvals,
     inputText,
+    reviewTargetType,
+    reviewBaseBranch,
+    reviewCommitSha,
+    reviewCustomInstructions,
     selectedModel,
     availableModels,
     permissionMode,
     selectRepo,
     setInputText,
+    setReviewTargetType,
+    setReviewBaseBranch,
+    setReviewCommitSha,
+    setReviewCustomInstructions,
     handleAddRepo,
     handleCreateThread,
     handleSelectThread,
@@ -1218,6 +1309,7 @@ export const useConversationState = (): UseAppStateResult => {
     handlePermissionModeChange,
     handleApprove,
     handleSend,
+    handleReviewStart,
     handleStop,
   };
 };

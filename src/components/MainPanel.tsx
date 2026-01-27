@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   FileChangeEntry,
   PermissionMode,
+  ReviewTargetType,
 } from "../types";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { ChatHistory } from "./ChatHistory";
@@ -17,13 +18,22 @@ type MainPanelProps = {
   fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
   inputText: string;
+  reviewTargetType: ReviewTargetType;
+  reviewBaseBranch: string;
+  reviewCommitSha: string;
+  reviewCustomInstructions: string;
   selectedThreadId: string | null;
   selectedRepoId: string | null;
   selectedModel: string | null;
   availableModels: string[] | undefined;
   permissionMode: PermissionMode;
   onInputTextChange: (value: string) => void;
+  onReviewTargetTypeChange: (value: ReviewTargetType) => void;
+  onReviewBaseBranchChange: (value: string) => void;
+  onReviewCommitShaChange: (value: string) => void;
+  onReviewCustomInstructionsChange: (value: string) => void;
   onSend: () => void | Promise<void>;
+  onReviewStart: () => void | Promise<void>;
   onStop: () => void | Promise<void>;
   onModelChange: (model: string | null) => void;
   onPermissionModeChange: (mode: PermissionMode) => void;
@@ -43,13 +53,22 @@ export function MainPanel({
   fileChanges,
   approvals,
   inputText,
+  reviewTargetType,
+  reviewBaseBranch,
+  reviewCommitSha,
+  reviewCustomInstructions,
   selectedThreadId,
   selectedRepoId,
   selectedModel,
   availableModels,
   permissionMode,
   onInputTextChange,
+  onReviewTargetTypeChange,
+  onReviewBaseBranchChange,
+  onReviewCommitShaChange,
+  onReviewCustomInstructionsChange,
   onSend,
+  onReviewStart,
   onStop,
   onModelChange,
   onPermissionModeChange,
@@ -84,6 +103,10 @@ export function MainPanel({
 
       <Composer
         inputText={inputText}
+        reviewTargetType={reviewTargetType}
+        reviewBaseBranch={reviewBaseBranch}
+        reviewCommitSha={reviewCommitSha}
+        reviewCustomInstructions={reviewCustomInstructions}
         selectedThreadId={selectedThreadId}
         running={running}
         activeTurnId={activeTurnId}
@@ -91,7 +114,12 @@ export function MainPanel({
         availableModels={availableModels}
         permissionMode={permissionMode}
         onInputTextChange={onInputTextChange}
+        onReviewTargetTypeChange={onReviewTargetTypeChange}
+        onReviewBaseBranchChange={onReviewBaseBranchChange}
+        onReviewCommitShaChange={onReviewCommitShaChange}
+        onReviewCustomInstructionsChange={onReviewCustomInstructionsChange}
         onSend={onSend}
+        onReviewStart={onReviewStart}
         onStop={onStop}
         onModelChange={onModelChange}
         onPermissionModeChange={onPermissionModeChange}

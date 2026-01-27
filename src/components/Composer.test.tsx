@@ -8,6 +8,10 @@ import { Composer } from "./Composer";
 const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
   const props: ComponentProps<typeof Composer> = {
     inputText: "hello",
+    reviewTargetType: "uncommittedChanges",
+    reviewBaseBranch: "",
+    reviewCommitSha: "",
+    reviewCustomInstructions: "",
     selectedThreadId: "thread-1",
     running: false,
     activeTurnId: null,
@@ -15,7 +19,12 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
     availableModels: [],
     permissionMode: "ReadOnly",
     onInputTextChange: vi.fn(),
+    onReviewTargetTypeChange: vi.fn(),
+    onReviewBaseBranchChange: vi.fn(),
+    onReviewCommitShaChange: vi.fn(),
+    onReviewCustomInstructionsChange: vi.fn(),
     onSend: vi.fn(),
+    onReviewStart: vi.fn(),
     onStop: vi.fn(),
     onModelChange: vi.fn(),
     onPermissionModeChange: vi.fn(),
@@ -64,5 +73,18 @@ describe("Composer", () => {
     setup({ running: true, activeTurnId: "turn-1" });
     const stopWhenRunning = screen.getByRole("button", { name: "Stop" });
     expect((stopWhenRunning as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("disables review when target details are missing", () => {
+    setup({ reviewTargetType: "baseBranch", reviewBaseBranch: "" });
+    const reviewButton = screen.getByRole("button", { name: "Review" });
+    expect((reviewButton as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("starts review on click when enabled", () => {
+    const props = setup();
+    const reviewButton = screen.getByRole("button", { name: "Review" });
+    fireEvent.click(reviewButton);
+    expect(props.onReviewStart).toHaveBeenCalledTimes(1);
   });
 });

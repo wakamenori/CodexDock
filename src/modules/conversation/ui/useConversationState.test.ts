@@ -37,6 +37,7 @@ vi.mock("../../../api", () => {
       createThread: vi.fn(),
       resumeThread: vi.fn(),
       startTurn: vi.fn(),
+      startReview: vi.fn(),
       cancelTurn: vi.fn(),
     },
   };
@@ -535,6 +536,54 @@ describe("useConversationState handleSend", () => {
         },
       }),
     );
+  });
+});
+
+describe("useConversationState handleReviewStart", () => {
+  beforeEach(() => {
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+    FakeWebSocket.instances = [];
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("starts review with uncommitted changes by default", async () => {
+    const hook = await setupHook();
+    mockedApi.startReview.mockResolvedValue({
+      turnId: "turn-1",
+      status: "running",
+      reviewThreadId: "thread-1",
+    });
+
+    await act(async () => {
+      await hook.result.current.handleReviewStart();
+    });
+
+    expect(mockedApi.startReview).toHaveBeenCalledWith(
+      "repo-1",
+      "thread-1",
+      { type: "uncommittedChanges" },
+      "inline",
+    );
+    await waitFor(() => {
+      expect(hook.result.current.activeTurnId).toBe("turn-1");
+    });
+  });
+
+  it("shows error when review target is missing", async () => {
+    const hook = await setupHook();
+    act(() => {
+      hook.result.current.setReviewTargetType("baseBranch");
+    });
+
+    await act(async () => {
+      await hook.result.current.handleReviewStart();
+    });
+
+    expect(mockedApi.startReview).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalled();
   });
 });
 

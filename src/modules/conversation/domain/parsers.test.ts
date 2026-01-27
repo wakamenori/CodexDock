@@ -166,6 +166,35 @@ describe("buildMessagesFromResume", () => {
     expect(messages[0].summary).toBe("a\n\nb");
     expect(messages[0].content).toBe("c\n\nd");
   });
+
+  it("includes assistant messages even when review markers are present", () => {
+    const payload = {
+      resume: {
+        thread: {
+          turns: [
+            {
+              items: [
+                { id: "rv1", type: "enteredReviewMode" },
+                {
+                  id: "a1",
+                  type: "assistantMessage",
+                  text: "Review complete",
+                },
+                {
+                  id: "rv2",
+                  type: "exitedReviewMode",
+                  review: "Review complete",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const messages = buildMessagesFromResume("t", payload);
+    expect(messages).toHaveLength(1);
+    expect(messages[0].text).toBe("Review complete");
+  });
 });
 
 describe("deriveReviewingFromResume", () => {

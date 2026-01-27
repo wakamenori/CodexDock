@@ -7,6 +7,18 @@ export type Repo = {
 
 export type PermissionMode = "FullAccess" | "ReadOnly" | "OnRequest";
 
+export type ReviewTargetType =
+  | "uncommittedChanges"
+  | "baseBranch"
+  | "commit"
+  | "custom";
+
+export type ReviewTarget =
+  | { type: "uncommittedChanges" }
+  | { type: "baseBranch"; branch: string }
+  | { type: "commit"; sha: string; title?: string }
+  | { type: "custom"; instructions: string };
+
 export type SandboxPolicy =
   | { type: "dangerFullAccess" }
   | { type: "readOnly" }

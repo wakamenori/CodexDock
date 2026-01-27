@@ -123,11 +123,50 @@ const extractTurnId = (result: unknown) => {
   );
 };
 
+const extractReviewThreadId = (result: unknown) => {
+  const record = isRecord(result) ? result : undefined;
+  return (
+    getIdString(record?.reviewThreadId) ?? getIdString(record?.review_thread_id)
+  );
+};
+
 const normalizePermissionMode = (value: unknown): PermissionMode => {
   if (value === "FullAccess" || value === "ReadOnly" || value === "OnRequest") {
     return value;
   }
   return "ReadOnly";
+};
+
+const requireReviewTarget = (target: Record<string, unknown>) => {
+  const targetType = getString(target, "type");
+  if (!targetType) {
+    throw badRequest("target.type is required", { field: "target.type" });
+  }
+  if (targetType === "uncommittedChanges") return targetType;
+  if (targetType === "baseBranch") {
+    const branch = getString(target, "branch");
+    if (!branch) {
+      throw badRequest("target.branch is required", { field: "target.branch" });
+    }
+    return targetType;
+  }
+  if (targetType === "commit") {
+    const sha = getString(target, "sha");
+    if (!sha) {
+      throw badRequest("target.sha is required", { field: "target.sha" });
+    }
+    return targetType;
+  }
+  if (targetType === "custom") {
+    const instructions = getString(target, "instructions");
+    if (!instructions) {
+      throw badRequest("target.instructions is required", {
+        field: "target.instructions",
+      });
+    }
+    return targetType;
+  }
+  throw badRequest("target.type is invalid", { field: "target.type" });
 };
 
 const extractThreadId = (result: unknown) => {
@@ -453,6 +492,53 @@ export const createApp = (options: CreateAppOptions) => {
         throw new Error("turn id missing");
       }
       return c.json({ turn: { turnId, status: "running" } }, 202);
+    } catch (error) {
+      throw appServerError(error);
+    }
+  });
+
+  app.post("/api/repos/:repoId/reviews", async (c) => {
+    const repoId = c.req.param("repoId");
+    await requireRepo(repoId);
+    const body = await parseJson(c);
+    if (!isRecord(body)) {
+      throw badRequest("threadId and target are required", {
+        field: "threadId",
+      });
+    }
+    const threadId = getString(body, "threadId");
+    const target = getRecord(body, "target");
+    const delivery = getString(body, "delivery");
+    if (!threadId || !target) {
+      throw badRequest("threadId and target are required", {
+        field: "threadId",
+      });
+    }
+    if (delivery && delivery !== "inline" && delivery !== "detached") {
+      throw badRequest("delivery must be inline or detached", {
+        field: "delivery",
+      });
+    }
+    requireReviewTarget(target);
+    try {
+      const session = await manager.getOrStart(repoId);
+      const params: JsonObject = {
+        threadId,
+        target: target as JsonObject,
+      };
+      if (delivery) {
+        params.delivery = delivery;
+      }
+      const result = await session.request("review/start", params);
+      const turnId = extractTurnId(result);
+      if (!turnId) {
+        throw new Error("turn id missing");
+      }
+      const reviewThreadId = extractReviewThreadId(result) ?? null;
+      return c.json(
+        { turn: { turnId, status: "running" }, reviewThreadId },
+        202,
+      );
     } catch (error) {
       throw appServerError(error);
     }
