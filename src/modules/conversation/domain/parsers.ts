@@ -4,27 +4,57 @@ import type { ChatMessage, FileChangeEntry } from "../../../types";
 
 const REASONING_SUMMARY_LIMIT = 4000;
 const REASONING_CONTENT_LIMIT = 20000;
+const REASONING_PART_SEPARATOR = "\n\n";
 
 const truncateText = (value: string, limit: number) =>
   value.length > limit ? value.slice(0, limit) : value;
 
-const extractTextParts = (value: unknown, separator = "\n\n"): string => {
-  if (typeof value === "string") return value;
-  if (!Array.isArray(value)) return "";
+const extractTextPartList = (value: unknown): string[] => {
+  if (typeof value === "string") return value ? [value] : [];
+  if (!Array.isArray(value)) return [];
   const parts: string[] = [];
   for (const entry of value) {
     if (typeof entry === "string") {
-      parts.push(entry);
+      if (entry) parts.push(entry);
       continue;
     }
     const record = asRecord(entry);
     if (!record) continue;
     const text = record.text ?? record.content ?? record.summary;
-    if (typeof text === "string") {
+    if (typeof text === "string" && text) {
       parts.push(text);
     }
   }
-  return parts.join(separator);
+  return parts;
+};
+
+const joinTextParts = (parts: string[], separator = REASONING_PART_SEPARATOR) =>
+  parts.filter((part) => part.length > 0).join(separator);
+
+const clampReasoningParts = (parts: string[], limit: number): string[] => {
+  const next: string[] = [];
+  let remaining = limit;
+  let hasEmitted = false;
+  for (const part of parts) {
+    if (!part) {
+      next.push("");
+      continue;
+    }
+    if (hasEmitted) {
+      if (remaining <= REASONING_PART_SEPARATOR.length) break;
+      remaining -= REASONING_PART_SEPARATOR.length;
+    }
+    if (part.length <= remaining) {
+      next.push(part);
+      remaining -= part.length;
+    } else {
+      next.push(part.slice(0, remaining));
+      remaining = 0;
+      break;
+    }
+    hasEmitted = true;
+  }
+  return next;
 };
 
 export const normalizeReasoningSummary = (value: string) =>
@@ -33,11 +63,35 @@ export const normalizeReasoningSummary = (value: string) =>
 export const normalizeReasoningContent = (value: string) =>
   truncateText(value, REASONING_CONTENT_LIMIT);
 
+export const normalizeReasoningSummaryParts = (parts: string[]) =>
+  clampReasoningParts(parts, REASONING_SUMMARY_LIMIT);
+
+export const normalizeReasoningContentParts = (parts: string[]) =>
+  clampReasoningParts(parts, REASONING_CONTENT_LIMIT);
+
 export const appendReasoningSummary = (current: string, delta: string) =>
   normalizeReasoningSummary(`${current}${delta}`);
 
 export const appendReasoningContent = (current: string, delta: string) =>
   normalizeReasoningContent(`${current}${delta}`);
+
+export const joinReasoningParts = (parts: string[]) =>
+  joinTextParts(parts, REASONING_PART_SEPARATOR);
+
+export const parseReasoningItemParts = (item: Record<string, unknown>) => {
+  const summaryParts = normalizeReasoningSummaryParts(
+    extractTextPartList(item.summary),
+  );
+  const contentParts = normalizeReasoningContentParts(
+    extractTextPartList(item.content),
+  );
+  return {
+    summaryParts,
+    contentParts,
+    summaryText: normalizeReasoningSummary(joinReasoningParts(summaryParts)),
+    contentText: normalizeReasoningContent(joinReasoningParts(contentParts)),
+  };
+};
 
 export const normalizeRootPath = (value?: string) =>
   normalizeRootPathShared(value);
@@ -93,6 +147,41 @@ export const parseDeltaText = (params: unknown) => {
     record?.text ??
     record?.message;
   return typeof candidate === "string" ? candidate : "";
+};
+
+const parseNumericIndex = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+  return undefined;
+};
+
+export const parseReasoningSummaryIndex = (
+  params: unknown,
+): number | undefined => {
+  const record = asRecord(params);
+  const deltaRecord = asRecord(record?.delta);
+  return (
+    parseNumericIndex(record?.summaryIndex) ??
+    parseNumericIndex(record?.summary_index) ??
+    parseNumericIndex(deltaRecord?.summaryIndex) ??
+    parseNumericIndex(deltaRecord?.summary_index)
+  );
+};
+
+export const parseReasoningContentIndex = (
+  params: unknown,
+): number | undefined => {
+  const record = asRecord(params);
+  const deltaRecord = asRecord(record?.delta);
+  return (
+    parseNumericIndex(record?.contentIndex) ??
+    parseNumericIndex(record?.content_index) ??
+    parseNumericIndex(deltaRecord?.contentIndex) ??
+    parseNumericIndex(deltaRecord?.content_index)
+  );
 };
 
 export const parseItemRecord = (params: unknown) => {
@@ -221,15 +310,17 @@ export const buildMessagesFromResume = (
       }
     }
     if (itemType === "reasoning") {
-      const summary = extractTextParts(item.summary);
-      const content = extractTextParts(item.content);
+      const { summaryParts, contentParts, summaryText, contentText } =
+        parseReasoningItemParts(item);
       messages.push({
         id: itemId,
         itemId,
         role: "reasoning",
         text: "",
-        summary: normalizeReasoningSummary(summary),
-        content: normalizeReasoningContent(content),
+        summary: summaryText,
+        content: contentText,
+        summaryParts,
+        contentParts,
         createdAt: baseTime + idx,
       });
     }

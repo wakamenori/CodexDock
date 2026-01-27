@@ -71,9 +71,19 @@ describe("createWsEventHandlers", () => {
     const store = createStore();
     store.handlers.handleAppServerNotification("r1", {
       method: "item/reasoning/summaryTextDelta",
-      params: { item: { id: "r1" }, delta: { text: "s" } },
+      params: { item: { id: "r1" }, delta: { text: "s" }, summaryIndex: 0 },
     });
     expect(store.snapshots().messages.t1[0].summary).toBe("s");
+    expect(store.snapshots().messages.t1[0].summaryParts).toEqual(["s"]);
+  });
+
+  it("handles reasoning summary part added", () => {
+    const store = createStore();
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/reasoning/summaryPartAdded",
+      params: { item: { id: "r1" }, summaryIndex: 2 },
+    });
+    expect(store.snapshots().messages.t1[0].summaryParts).toHaveLength(3);
   });
 
   it("handles user item started replacing pending", () => {
