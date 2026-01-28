@@ -18,6 +18,7 @@ import type {
   ThreadStatusFlags,
   ThreadSummary,
   ThreadUiStatus,
+  ToolTimelineItem,
   WsInboundMessage,
   WsOutboundMessage,
 } from "../../../types";
@@ -32,6 +33,7 @@ import {
 } from "../domain/approval";
 import {
   buildMessagesFromResume,
+  buildToolItemsFromResume,
   createRequestId,
   deriveReviewingFromResume,
   normalizeRootPath,
@@ -62,6 +64,7 @@ export type UseAppStateResult = {
   running: boolean;
   activeTurnId: string | null;
   messages: ChatMessage[];
+  toolItems: ToolTimelineItem[];
   diffs: DiffEntry[];
   fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
@@ -203,6 +206,9 @@ export const useConversationState = (): UseAppStateResult => {
   const [fileChangesByThread, setFileChangesByThread] = useState<
     Record<string, Record<string, FileChangeEntry>>
   >({});
+  const [toolItemsByThread, setToolItemsByThread] = useState<
+    Record<string, Record<string, ToolTimelineItem>>
+  >({});
   const [approvalsByThread, setApprovalsByThread] = useState<
     Record<string, ApprovalRequest[]>
   >({});
@@ -258,6 +264,9 @@ export const useConversationState = (): UseAppStateResult => {
   const fileChanges = selectedThreadId
     ? (fileChangesByThread[selectedThreadId] ?? {})
     : {};
+  const toolItems = selectedThreadId
+    ? Object.values(toolItemsByThread[selectedThreadId] ?? {})
+    : [];
   const approvals = selectedThreadId
     ? (approvalsByThread[selectedThreadId] ?? [])
     : [];
@@ -635,6 +644,21 @@ export const useConversationState = (): UseAppStateResult => {
     [],
   );
 
+  const updateThreadToolItems = useCallback(
+    (
+      threadId: string,
+      updater: (
+        map: Record<string, ToolTimelineItem>,
+      ) => Record<string, ToolTimelineItem>,
+    ) => {
+      setToolItemsByThread((prev) => {
+        const map = updater(prev[threadId] ?? {});
+        return { ...prev, [threadId]: map };
+      });
+    },
+    [],
+  );
+
   const updateThreadApprovals = useCallback(
     (
       threadId: string,
@@ -673,6 +697,14 @@ export const useConversationState = (): UseAppStateResult => {
     [],
   );
 
+  const setThreadToolItems = useCallback(
+    (threadId: string, list: ToolTimelineItem[]) => {
+      const map = Object.fromEntries(list.map((item) => [item.itemId, item]));
+      setToolItemsByThread((prev) => ({ ...prev, [threadId]: map }));
+    },
+    [],
+  );
+
   const wsHandlers = useMemo(
     () =>
       createWsEventHandlers({
@@ -680,6 +712,7 @@ export const useConversationState = (): UseAppStateResult => {
         updateMessages: updateThreadMessages,
         updateDiffs: updateThreadDiffs,
         updateFileChanges: updateThreadFileChanges,
+        updateToolItems: updateThreadToolItems,
         updateApprovals: updateThreadApprovals,
         setActiveTurn: (threadId: string, turnId: string | null) => {
           setActiveTurnByThread((prev) => ({ ...prev, [threadId]: turnId }));
@@ -690,6 +723,7 @@ export const useConversationState = (): UseAppStateResult => {
       updateThreadMessages,
       updateThreadDiffs,
       updateThreadFileChanges,
+      updateThreadToolItems,
       updateThreadApprovals,
       updateThreadStatus,
     ],
@@ -925,12 +959,20 @@ export const useConversationState = (): UseAppStateResult => {
             selectedRepoId,
             preferred,
           );
+          const baseTime = Date.now();
           const resumeMessages = buildMessagesFromResume(
             preferred,
             resumeResult,
+            baseTime,
+          );
+          const resumeToolItems = buildToolItemsFromResume(
+            preferred,
+            resumeResult,
+            baseTime,
           );
           const reviewing = deriveReviewingFromResume(resumeResult);
           setThreadMessages(preferred, resumeMessages);
+          setThreadToolItems(preferred, resumeToolItems);
           updateThreadStatus(preferred, (status) => ({
             ...status,
             reviewing,
@@ -952,6 +994,7 @@ export const useConversationState = (): UseAppStateResult => {
     normalizedRepoPath,
     selectedRepoId,
     setThreadMessages,
+    setThreadToolItems,
     updateThreadStatus,
   ]);
 
@@ -1309,9 +1352,20 @@ export const useConversationState = (): UseAppStateResult => {
       setSelectedThreadId(threadId);
       try {
         const resumeResult = await api.resumeThread(repoId, threadId);
-        const resumeMessages = buildMessagesFromResume(threadId, resumeResult);
+        const baseTime = Date.now();
+        const resumeMessages = buildMessagesFromResume(
+          threadId,
+          resumeResult,
+          baseTime,
+        );
+        const resumeToolItems = buildToolItemsFromResume(
+          threadId,
+          resumeResult,
+          baseTime,
+        );
         const reviewing = deriveReviewingFromResume(resumeResult);
         setThreadMessages(threadId, resumeMessages);
+        setThreadToolItems(threadId, resumeToolItems);
         updateThreadStatus(threadId, (status) => ({
           ...status,
           reviewing,
@@ -1324,7 +1378,7 @@ export const useConversationState = (): UseAppStateResult => {
         );
       }
     },
-    [selectedRepoId, setThreadMessages, updateThreadStatus],
+    [selectedRepoId, setThreadMessages, setThreadToolItems, updateThreadStatus],
   );
 
   const handleAddRepo = useCallback(async () => {
@@ -1364,6 +1418,7 @@ export const useConversationState = (): UseAppStateResult => {
     messages,
     diffs,
     fileChanges,
+    toolItems,
     approvals,
     inputText,
     reviewTargetType,

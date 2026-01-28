@@ -6,6 +6,7 @@ import type {
   DiffEntry,
   FileChangeEntry,
   ThreadStatusFlags,
+  ToolTimelineItem,
 } from "../../../types";
 import { createWsEventHandlers } from "./wsHandlers";
 
@@ -13,6 +14,7 @@ const createStore = (selectedThreadId: string | null = "t1") => {
   const messages: Record<string, ChatMessage[]> = {};
   const diffs: Record<string, DiffEntry[]> = {};
   const fileChanges: Record<string, Record<string, FileChangeEntry>> = {};
+  const toolItems: Record<string, Record<string, ToolTimelineItem>> = {};
   const approvals: Record<string, ApprovalRequest[]> = {};
   const activeTurn: Record<string, string | null> = {};
   const threadStatus: Record<string, ThreadStatusFlags> = {};
@@ -27,6 +29,9 @@ const createStore = (selectedThreadId: string | null = "t1") => {
     },
     updateFileChanges: (threadId, updater) => {
       fileChanges[threadId] = updater(fileChanges[threadId] ?? {});
+    },
+    updateToolItems: (threadId, updater) => {
+      toolItems[threadId] = updater(toolItems[threadId] ?? {});
     },
     updateApprovals: (threadId, updater) => {
       approvals[threadId] = updater(approvals[threadId] ?? []);
@@ -50,6 +55,7 @@ const createStore = (selectedThreadId: string | null = "t1") => {
       messages,
       diffs,
       fileChanges,
+      toolItems,
       approvals,
       activeTurn,
       threadStatus,
@@ -120,6 +126,34 @@ describe("createWsEventHandlers", () => {
       },
     });
     expect(store.snapshots().fileChanges.t1.f1.changes[0].path).toBe("a");
+  });
+
+  it("tracks command execution output delta", () => {
+    const store = createStore();
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/commandExecution/outputDelta",
+      params: { itemId: "c1", threadId: "t1", delta: "line\n" },
+    });
+    expect(store.snapshots().toolItems.t1.c1.outputStream).toBe("line\n");
+    expect(store.snapshots().toolItems.t1.c1.type).toBe("commandExecution");
+  });
+
+  it("stores mcp tool call items", () => {
+    const store = createStore();
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/started",
+      params: {
+        item: {
+          id: "m1",
+          type: "mcpToolCall",
+          server: "alpha",
+          tool: "do_thing",
+          status: "inProgress",
+          arguments: { foo: "bar" },
+        },
+      },
+    });
+    expect(store.snapshots().toolItems.t1.m1.type).toBe("mcpToolCall");
   });
 
   it("adds approvals on request", () => {

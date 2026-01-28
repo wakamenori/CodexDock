@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   DiffEntry,
   FileChangeEntry,
+  ToolTimelineItem,
 } from "../../../types";
 import {
   joinReasoningParts,
@@ -338,6 +339,94 @@ export const applyDiffUpdate = (
     list.push({ turnId, diffText, updatedAt: now() });
   }
   return list;
+};
+
+export const upsertToolItem = (
+  map: Record<string, ToolTimelineItem>,
+  incoming: ToolTimelineItem,
+): Record<string, ToolTimelineItem> => {
+  const existing = map[incoming.itemId];
+  const createdAt = existing?.createdAt ?? incoming.createdAt;
+  const outputStream =
+    incoming.outputStream !== undefined
+      ? incoming.outputStream
+      : existing?.outputStream;
+  const progressMessages =
+    incoming.progressMessages !== undefined
+      ? incoming.progressMessages
+      : existing?.progressMessages;
+  return {
+    ...map,
+    [incoming.itemId]: {
+      ...existing,
+      ...incoming,
+      createdAt,
+      updatedAt: now(),
+      outputStream,
+      progressMessages,
+    },
+  };
+};
+
+export const appendToolItemOutputDelta = (
+  map: Record<string, ToolTimelineItem>,
+  args: {
+    itemId: string;
+    type: ToolTimelineItem["type"];
+    delta: string;
+    threadId?: string;
+    turnId?: string;
+  },
+): Record<string, ToolTimelineItem> => {
+  const existing = map[args.itemId];
+  const createdAt = existing?.createdAt ?? now();
+  const outputStream = `${existing?.outputStream ?? ""}${args.delta}`;
+  return {
+    ...map,
+    [args.itemId]: {
+      ...existing,
+      itemId: args.itemId,
+      type: existing?.type ?? args.type,
+      threadId: args.threadId ?? existing?.threadId,
+      turnId: args.turnId ?? existing?.turnId,
+      status: existing?.status ?? "inProgress",
+      createdAt,
+      updatedAt: now(),
+      outputStream,
+    },
+  };
+};
+
+export const appendToolItemProgressMessage = (
+  map: Record<string, ToolTimelineItem>,
+  args: {
+    itemId: string;
+    type: ToolTimelineItem["type"];
+    message: string;
+    threadId?: string;
+    turnId?: string;
+  },
+): Record<string, ToolTimelineItem> => {
+  const existing = map[args.itemId];
+  const createdAt = existing?.createdAt ?? now();
+  const progressMessages = [
+    ...(existing?.progressMessages ?? []),
+    args.message,
+  ];
+  return {
+    ...map,
+    [args.itemId]: {
+      ...existing,
+      itemId: args.itemId,
+      type: existing?.type ?? args.type,
+      threadId: args.threadId ?? existing?.threadId,
+      turnId: args.turnId ?? existing?.turnId,
+      status: existing?.status ?? "inProgress",
+      createdAt,
+      updatedAt: now(),
+      progressMessages,
+    },
+  };
 };
 
 export const removeApproval = (

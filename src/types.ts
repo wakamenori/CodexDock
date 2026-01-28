@@ -162,3 +162,44 @@ export type ApprovalRequest = {
   turnId?: string;
   itemId?: string;
 };
+
+export type ToolItemType =
+  | "commandExecution"
+  | "fileChange"
+  | "mcpToolCall"
+  | "collabToolCall"
+  | "collabAgentToolCall"
+  | "webSearch"
+  | "imageView";
+
+export type ToolTimelineItem = {
+  itemId: string;
+  threadId?: string;
+  turnId?: string;
+  type: ToolItemType;
+  status?: string;
+  createdAt: number;
+  updatedAt: number;
+  input?: JsonValue;
+  output?: JsonValue;
+  error?: JsonValue;
+  outputStream?: string;
+  progressMessages?: string[];
+  command?: string;
+  cwd?: string;
+  commandActions?: JsonValue[];
+  aggregatedOutput?: string | null;
+  exitCode?: number | null;
+  durationMs?: number | null;
+  changes?: FileChange[];
+  server?: string;
+  tool?: string;
+  arguments?: JsonValue;
+  result?: JsonValue;
+  senderThreadId?: string;
+  receiverThreadIds?: string[];
+  prompt?: string | null;
+  agentsStates?: JsonValue;
+  query?: string;
+  path?: string;
+};

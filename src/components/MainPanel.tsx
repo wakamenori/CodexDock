@@ -4,6 +4,7 @@ import type {
   FileChangeEntry,
   PermissionMode,
   ReviewTargetType,
+  ToolTimelineItem,
 } from "../types";
 import { ApprovalPanel } from "./ApprovalPanel";
 import { ChatHistory } from "./ChatHistory";
@@ -15,6 +16,7 @@ type MainPanelProps = {
   running: boolean;
   activeTurnId: string | null;
   messages: ChatMessage[];
+  toolItems: ToolTimelineItem[];
   fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
   inputText: string;
@@ -50,6 +52,7 @@ export function MainPanel({
   running,
   activeTurnId,
   messages,
+  toolItems,
   fileChanges,
   approvals,
   inputText,
@@ -89,6 +92,7 @@ export function MainPanel({
 
       <ChatHistory
         messages={messages}
+        toolItems={toolItems}
         selectedThreadId={selectedThreadId}
         selectedRepoPath={selectedRepoPath}
       />

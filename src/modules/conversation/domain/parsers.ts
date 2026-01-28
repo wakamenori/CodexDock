@@ -1,6 +1,12 @@
 import { normalizeRootPath as normalizeRootPathShared } from "../../../shared/paths";
 import { asRecord, getRecordId } from "../../../shared/records";
-import type { ChatMessage, FileChangeEntry } from "../../../types";
+import type {
+  ChatMessage,
+  FileChangeEntry,
+  JsonValue,
+  ToolItemType,
+  ToolTimelineItem,
+} from "../../../types";
 
 const REASONING_SUMMARY_LIMIT = 4000;
 const REASONING_CONTENT_LIMIT = 20000;
@@ -274,11 +280,11 @@ const extractResumeItems = (result: unknown): Record<string, unknown>[] => {
 export const buildMessagesFromResume = (
   threadId: string,
   result: unknown,
+  baseTime: number = Date.now(),
 ): ChatMessage[] => {
   const resultRecord = asRecord(result);
   const resumePayload = resultRecord?.resume ?? resultRecord;
   const items = extractResumeItems(resumePayload);
-  const baseTime = Date.now();
   const messages: ChatMessage[] = [];
   for (let idx = 0; idx < items.length; idx += 1) {
     const item = items[idx];
@@ -326,6 +332,25 @@ export const buildMessagesFromResume = (
     }
   }
   return messages;
+};
+
+export const buildToolItemsFromResume = (
+  threadId: string,
+  result: unknown,
+  baseTime: number = Date.now(),
+): ToolTimelineItem[] => {
+  const resultRecord = asRecord(result);
+  const resumePayload = resultRecord?.resume ?? resultRecord;
+  const items = extractResumeItems(resumePayload);
+  const toolItems: ToolTimelineItem[] = [];
+  for (let idx = 0; idx < items.length; idx += 1) {
+    const item = items[idx];
+    const toolItem = parseToolItem({ threadId, item }, item, baseTime + idx);
+    if (toolItem) {
+      toolItems.push(toolItem);
+    }
+  }
+  return toolItems;
 };
 
 export const deriveReviewingFromResume = (result: unknown): boolean => {
@@ -389,4 +414,233 @@ export const parseFileChangeTurnId = (
     getRecordId(turnRecord, "turnId") ??
     getRecordId(turnRecord, "turn_id")
   );
+};
+
+const isToolItemType = (value: unknown): value is ToolItemType =>
+  value === "commandExecution" ||
+  value === "fileChange" ||
+  value === "mcpToolCall" ||
+  value === "collabToolCall" ||
+  value === "collabAgentToolCall" ||
+  value === "webSearch" ||
+  value === "imageView";
+
+const getStringValue = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): string | undefined => {
+  if (!record) return undefined;
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+};
+
+const getNumberValue = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): number | undefined => {
+  if (!record) return undefined;
+  const value = record[key];
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+};
+
+const getArrayValue = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): unknown[] | undefined => {
+  if (!record) return undefined;
+  const value = record[key];
+  return Array.isArray(value) ? value : undefined;
+};
+
+const asJsonValue = (value: unknown): JsonValue | undefined =>
+  value as JsonValue | undefined;
+
+const buildToolBase = (
+  params: unknown,
+  item: Record<string, unknown>,
+  itemId: string,
+  createdAt: number,
+): ToolTimelineItem => {
+  const itemType = item.type;
+  const status = typeof item.status === "string" ? item.status : undefined;
+  const threadId = parseThreadId(params);
+  const turnId =
+    itemType === "fileChange"
+      ? parseFileChangeTurnId(params, item)
+      : parseTurnId(params);
+  return {
+    itemId,
+    threadId,
+    turnId,
+    type: itemType as ToolItemType,
+    status,
+    createdAt,
+    updatedAt: createdAt,
+  };
+};
+
+export const parseToolItem = (
+  params: unknown,
+  item: Record<string, unknown>,
+  createdAt: number,
+): ToolTimelineItem | null => {
+  const itemType = item.type;
+  if (!isToolItemType(itemType)) return null;
+  const itemId = parseItemId(params, `${itemType}-${createdAt}`);
+  const base = buildToolBase(params, item, itemId, createdAt);
+
+  if (itemType === "commandExecution") {
+    const record = asRecord(item);
+    const command = getStringValue(record, "command");
+    const cwd = getStringValue(record, "cwd");
+    const commandActions =
+      getArrayValue(record, "commandActions") ??
+      getArrayValue(record, "command_actions");
+    const aggregatedOutput =
+      getStringValue(record, "aggregatedOutput") ??
+      getStringValue(record, "aggregated_output");
+    const exitCode =
+      getNumberValue(record, "exitCode") ?? getNumberValue(record, "exit_code");
+    const durationMs =
+      getNumberValue(record, "durationMs") ??
+      getNumberValue(record, "duration_ms");
+    const input = {
+      command,
+      cwd,
+      commandActions: commandActions ?? [],
+    };
+    const output = {
+      status: base.status,
+      aggregatedOutput,
+      exitCode,
+      durationMs,
+    };
+    return {
+      ...base,
+      command,
+      cwd,
+      commandActions: (commandActions ?? []) as JsonValue[],
+      aggregatedOutput: aggregatedOutput ?? null,
+      exitCode: exitCode ?? null,
+      durationMs: durationMs ?? null,
+      input: asJsonValue(input),
+      output: asJsonValue(output),
+    };
+  }
+
+  if (itemType === "fileChange") {
+    const changes = parseFileChangeEntries(item);
+    const status = parseFileChangeStatus(item);
+    const input = { changes };
+    const output = { status };
+    return {
+      ...base,
+      status: status ?? base.status,
+      changes,
+      input: asJsonValue(input),
+      output: asJsonValue(output),
+    };
+  }
+
+  if (itemType === "mcpToolCall") {
+    const record = asRecord(item);
+    const server = getStringValue(record, "server");
+    const tool = getStringValue(record, "tool");
+    const argumentsValue = asJsonValue(record?.arguments);
+    const result = asJsonValue(record?.result);
+    const error = asJsonValue(record?.error);
+    const durationMs =
+      getNumberValue(record, "durationMs") ??
+      getNumberValue(record, "duration_ms");
+    const input = { server, tool, arguments: argumentsValue };
+    const output = {
+      status: base.status,
+      result,
+      error,
+      durationMs,
+    };
+    return {
+      ...base,
+      server,
+      tool,
+      arguments: argumentsValue,
+      result,
+      durationMs: durationMs ?? null,
+      input: asJsonValue(input),
+      output: asJsonValue(output),
+      error: error ?? undefined,
+    };
+  }
+
+  if (itemType === "collabToolCall" || itemType === "collabAgentToolCall") {
+    const record = asRecord(item);
+    const tool = getStringValue(record, "tool");
+    const senderThreadId =
+      getStringValue(record, "senderThreadId") ??
+      getStringValue(record, "sender_thread_id");
+    const receiverThreadIds =
+      getArrayValue(record, "receiverThreadIds")?.filter(
+        (entry) => typeof entry === "string",
+      ) ??
+      getArrayValue(record, "receiver_thread_ids")?.filter(
+        (entry) => typeof entry === "string",
+      ) ??
+      (getStringValue(record, "receiverThreadId")
+        ? [getStringValue(record, "receiverThreadId") as string]
+        : []);
+    const prompt =
+      getStringValue(record, "prompt") ??
+      getStringValue(record, "message") ??
+      null;
+    const agentsStates =
+      asJsonValue(record?.agentsStates) ??
+      asJsonValue(record?.agents_states) ??
+      asJsonValue(record?.agentStatus);
+    const input = {
+      tool,
+      senderThreadId,
+      receiverThreadIds,
+      prompt,
+    };
+    const output = {
+      status: base.status,
+      agentsStates,
+    };
+    return {
+      ...base,
+      tool,
+      senderThreadId,
+      receiverThreadIds,
+      prompt,
+      agentsStates,
+      input: asJsonValue(input),
+      output: asJsonValue(output),
+    };
+  }
+
+  if (itemType === "webSearch") {
+    const record = asRecord(item);
+    const query = getStringValue(record, "query");
+    const input = { query };
+    return {
+      ...base,
+      query,
+      input: asJsonValue(input),
+    };
+  }
+
+  if (itemType === "imageView") {
+    const record = asRecord(item);
+    const path = getStringValue(record, "path");
+    const input = { path };
+    return {
+      ...base,
+      path,
+      input: asJsonValue(input),
+    };
+  }
+
+  return null;
 };

@@ -15,6 +15,7 @@ export default function App() {
     running,
     activeTurnId,
     messages,
+    toolItems,
     fileChanges,
     approvals,
     inputText,
@@ -63,6 +64,7 @@ export default function App() {
           running={running}
           activeTurnId={activeTurnId}
           messages={messages}
+          toolItems={toolItems}
           fileChanges={fileChanges}
           approvals={approvals}
           inputText={inputText}

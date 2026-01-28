@@ -6,6 +6,7 @@ import type {
   FileChangeEntry,
   JsonValue,
   ThreadStatusFlags,
+  ToolTimelineItem,
   WsInboundMessage,
 } from "../../../types";
 import {
@@ -21,10 +22,13 @@ import {
   parseReasoningItemParts,
   parseReasoningSummaryIndex,
   parseThreadId,
+  parseToolItem,
   parseTurnId,
   parseUserMessageText,
 } from "../domain/parsers";
 import {
+  appendToolItemOutputDelta,
+  appendToolItemProgressMessage,
   applyAgentMessageStart,
   applyDiffUpdate,
   applyFileChangeUpdate,
@@ -33,6 +37,7 @@ import {
   applyUserMessageStart,
   upsertAgentDelta,
   upsertReasoningDelta,
+  upsertToolItem,
 } from "../domain/state";
 
 type ThreadStateStore = {
@@ -50,6 +55,12 @@ type ThreadStateStore = {
     updater: (
       map: Record<string, FileChangeEntry>,
     ) => Record<string, FileChangeEntry>,
+  ) => void;
+  updateToolItems: (
+    threadId: string,
+    updater: (
+      map: Record<string, ToolTimelineItem>,
+    ) => Record<string, ToolTimelineItem>,
   ) => void;
   updateApprovals: (
     threadId: string,
@@ -107,6 +118,57 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
       if (!deltaText) return;
       store.updateMessages(threadId, (list) =>
         upsertAgentDelta(list, itemId, deltaText),
+      );
+      return;
+    }
+
+    if (method === "item/commandExecution/outputDelta") {
+      const itemId = parseItemId(params, `${method}-${Date.now()}`);
+      const deltaText = parseDeltaText(params);
+      if (!deltaText) return;
+      const turnId = parseTurnId(params);
+      store.updateToolItems(threadId, (map) =>
+        appendToolItemOutputDelta(map, {
+          itemId,
+          type: "commandExecution",
+          delta: deltaText,
+          threadId,
+          turnId,
+        }),
+      );
+      return;
+    }
+
+    if (method === "item/fileChange/outputDelta") {
+      const itemId = parseItemId(params, `${method}-${Date.now()}`);
+      const deltaText = parseDeltaText(params);
+      if (!deltaText) return;
+      const turnId = parseTurnId(params);
+      store.updateToolItems(threadId, (map) =>
+        appendToolItemOutputDelta(map, {
+          itemId,
+          type: "fileChange",
+          delta: deltaText,
+          threadId,
+          turnId,
+        }),
+      );
+      return;
+    }
+
+    if (method === "item/mcpToolCall/progress") {
+      const itemId = parseItemId(params, `${method}-${Date.now()}`);
+      const message = parseDeltaText(params);
+      if (!message) return;
+      const turnId = parseTurnId(params);
+      store.updateToolItems(threadId, (map) =>
+        appendToolItemProgressMessage(map, {
+          itemId,
+          type: "mcpToolCall",
+          message,
+          threadId,
+          turnId,
+        }),
       );
       return;
     }
@@ -197,6 +259,11 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
             changes: itemChanges,
           }),
         );
+      }
+
+      const toolItem = parseToolItem(params, item, Date.now());
+      if (toolItem) {
+        store.updateToolItems(threadId, (map) => upsertToolItem(map, toolItem));
       }
       if (itemType === "enteredReviewMode") {
         setReviewing(true);
