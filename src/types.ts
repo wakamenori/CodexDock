@@ -30,6 +30,28 @@ export type TurnStartOptions = {
   sandboxPolicy?: SandboxPolicy;
 };
 
+export type TurnInputItem =
+  | { type: "text"; text: string }
+  | { type: "image"; url: string }
+  | { type: "localImage"; path: string };
+
+export type UploadedImage = {
+  id: string;
+  name: string;
+  path: string;
+  url: string;
+  size: number;
+  type: string;
+};
+
+export type ImageAttachment = {
+  id: string;
+  name: string;
+  previewUrl: string;
+  size: number;
+  type: string;
+};
+
 export type JsonValue =
   | string
   | number
@@ -122,7 +144,16 @@ export type ChatMessage = {
   content?: string;
   summaryParts?: string[];
   contentParts?: string[];
+  images?: UserMessageImage[];
   approval?: ApprovalMessage;
+};
+
+export type UserMessageImage = {
+  kind: "localImage" | "image";
+  path?: string;
+  url?: string;
+  name?: string;
+  mimeType?: string;
 };
 
 export type ApprovalMessage = {

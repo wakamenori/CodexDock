@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAutoScroll } from "../hooks/useAutoScroll";
-import { toRelativePath } from "../shared/paths";
+import {
+  buildUploadImageUrl,
+  extractFileName,
+  toRelativePath,
+} from "../shared/paths";
 import type { ChatMessage, ToolTimelineItem } from "../types";
 import { copyToClipboard } from "../utils/clipboard";
 import { DiffViewer } from "./DiffViewer";
@@ -211,6 +215,32 @@ export function ChatHistory({
               const isCopyable =
                 message.role === "user" || message.role === "agent";
               const isCopied = copiedMessageId === message.id;
+              const images = message.images ?? [];
+              const imageNodes = images
+                .map((image, index) => {
+                  const src =
+                    image.url ??
+                    buildUploadImageUrl(image.path ?? null) ??
+                    null;
+                  if (!src) return null;
+                  const fallbackName =
+                    image.name ?? extractFileName(image.path ?? null);
+                  const altText = fallbackName ?? "attached image";
+                  return (
+                    <div
+                      key={`${message.id}-image-${index}`}
+                      className="relative overflow-hidden rounded-lg border border-ink-800 bg-ink-950/60"
+                    >
+                      <img
+                        src={src}
+                        alt={altText}
+                        className="h-28 w-40 object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                  );
+                })
+                .filter((node) => node !== null);
               return (
                 <div
                   key={message.id}
@@ -253,9 +283,16 @@ export function ChatHistory({
                         </button>
                       </div>
                     )}
-                    <div className="mt-2 text-sm leading-relaxed text-ink-200 markdown">
-                      <MarkdownRenderer>{message.text}</MarkdownRenderer>
-                    </div>
+                    {imageNodes.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {imageNodes}
+                      </div>
+                    )}
+                    {message.text ? (
+                      <div className="mt-2 text-sm leading-relaxed text-ink-200 markdown">
+                        <MarkdownRenderer>{message.text}</MarkdownRenderer>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -272,7 +309,7 @@ export function ChatHistory({
         <button
           type="button"
           onClick={() => enableAutoScroll()}
-          className={`absolute bottom-6 right-6 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] shadow-lg transition ${
+          className={`absolute bottom-6 right-6 grid h-11 w-11 place-items-center rounded-full border shadow-lg transition ${
             hasNewMessages
               ? "border-neon-400/70 bg-neon-500/90 text-ink-950 shadow-glow"
               : "border-ink-600 bg-ink-900/80 text-ink-200 hover:border-ink-400"
@@ -280,7 +317,19 @@ export function ChatHistory({
           aria-label="Scroll to latest"
           title="Scroll to latest"
         >
-          Latest
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 5v14" />
+            <path d="m19 12-7 7-7-7" />
+          </svg>
         </button>
       )}
     </div>

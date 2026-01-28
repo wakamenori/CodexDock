@@ -2,6 +2,7 @@ import type {
   ApprovalRequest,
   ChatMessage,
   FileChangeEntry,
+  ImageAttachment,
   PermissionMode,
   ReviewTargetType,
   ToolTimelineItem,
@@ -20,6 +21,7 @@ type MainPanelProps = {
   fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
   inputText: string;
+  attachedImages: ImageAttachment[];
   reviewTargetType: ReviewTargetType;
   reviewBaseBranch: string;
   reviewCommitSha: string;
@@ -35,6 +37,8 @@ type MainPanelProps = {
   onReviewCommitShaChange: (value: string) => void;
   onReviewCustomInstructionsChange: (value: string) => void;
   onSend: () => void | Promise<void>;
+  onAddImages: (files: File[]) => void;
+  onRemoveImage: (id: string) => void;
   onReviewStart: () => void | Promise<void>;
   onStop: () => void | Promise<void>;
   onModelChange: (model: string | null) => void;
@@ -56,6 +60,7 @@ export function MainPanel({
   fileChanges,
   approvals,
   inputText,
+  attachedImages,
   reviewTargetType,
   reviewBaseBranch,
   reviewCommitSha,
@@ -71,6 +76,8 @@ export function MainPanel({
   onReviewCommitShaChange,
   onReviewCustomInstructionsChange,
   onSend,
+  onAddImages,
+  onRemoveImage,
   onReviewStart,
   onStop,
   onModelChange,
@@ -107,6 +114,7 @@ export function MainPanel({
 
       <Composer
         inputText={inputText}
+        attachedImages={attachedImages}
         reviewTargetType={reviewTargetType}
         reviewBaseBranch={reviewBaseBranch}
         reviewCommitSha={reviewCommitSha}
@@ -123,6 +131,8 @@ export function MainPanel({
         onReviewCommitShaChange={onReviewCommitShaChange}
         onReviewCustomInstructionsChange={onReviewCustomInstructionsChange}
         onSend={onSend}
+        onAddImages={onAddImages}
+        onRemoveImage={onRemoveImage}
         onReviewStart={onReviewStart}
         onStop={onStop}
         onModelChange={onModelChange}

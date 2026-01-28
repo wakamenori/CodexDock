@@ -8,6 +8,7 @@ import { Composer } from "./Composer";
 const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
   const props: ComponentProps<typeof Composer> = {
     inputText: "hello",
+    attachedImages: [],
     reviewTargetType: "uncommittedChanges",
     reviewBaseBranch: "",
     reviewCommitSha: "",
@@ -23,6 +24,8 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
     onReviewBaseBranchChange: vi.fn(),
     onReviewCommitShaChange: vi.fn(),
     onReviewCustomInstructionsChange: vi.fn(),
+    onAddImages: vi.fn(),
+    onRemoveImage: vi.fn(),
     onSend: vi.fn(),
     onReviewStart: vi.fn(),
     onStop: vi.fn(),
@@ -86,5 +89,22 @@ describe("Composer", () => {
     const reviewButton = screen.getByRole("button", { name: "Review" });
     fireEvent.click(reviewButton);
     expect(props.onReviewStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("enables send when images are attached without text", () => {
+    setup({
+      inputText: "",
+      attachedImages: [
+        {
+          id: "img-1",
+          name: "image.png",
+          previewUrl: "blob://image",
+          size: 10,
+          type: "image/png",
+        },
+      ],
+    });
+    const sendButton = screen.getByRole("button", { name: "Send" });
+    expect((sendButton as HTMLButtonElement).disabled).toBe(false);
   });
 });

@@ -19,6 +19,7 @@ export default function App() {
     fileChanges,
     approvals,
     inputText,
+    attachedImages,
     reviewTargetType,
     reviewBaseBranch,
     reviewCommitSha,
@@ -39,6 +40,8 @@ export default function App() {
     handlePermissionModeChange,
     handleApprove,
     handleSend,
+    handleAddImages,
+    handleRemoveImage,
     handleReviewStart,
     handleStop,
   } = useConversationState();
@@ -68,6 +71,7 @@ export default function App() {
           fileChanges={fileChanges}
           approvals={approvals}
           inputText={inputText}
+          attachedImages={attachedImages}
           reviewTargetType={reviewTargetType}
           reviewBaseBranch={reviewBaseBranch}
           reviewCommitSha={reviewCommitSha}
@@ -84,6 +88,8 @@ export default function App() {
           onReviewCommitShaChange={setReviewCommitSha}
           onReviewCustomInstructionsChange={setReviewCustomInstructions}
           onSend={handleSend}
+          onAddImages={handleAddImages}
+          onRemoveImage={handleRemoveImage}
           onReviewStart={handleReviewStart}
           onStop={handleStop}
           onModelChange={handleModelChange}

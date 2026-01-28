@@ -3,7 +3,9 @@ import type {
   Repo,
   ReviewTarget,
   ThreadSummary,
+  TurnInputItem,
   TurnStartOptions,
+  UploadedImage,
 } from "./types";
 
 const jsonHeaders = {
@@ -127,7 +129,7 @@ export const api = {
   async startTurn(
     repoId: string,
     threadId: string,
-    input: { type: string; text: string }[],
+    input: TurnInputItem[],
     options?: TurnStartOptions,
   ): Promise<{ turnId: string; status: string }> {
     const data = await requestJson<{
@@ -138,6 +140,20 @@ export const api = {
       body: JSON.stringify({ threadId, input, options }),
     });
     return data.turn;
+  },
+  async uploadImages(files: File[]): Promise<UploadedImage[]> {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file, file.name);
+    }
+    const data = await requestJson<{ uploads: UploadedImage[] }>(
+      "/api/uploads",
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+    return data.uploads;
   },
   async startReview(
     repoId: string,

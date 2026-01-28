@@ -1,3 +1,4 @@
+import path from "node:path";
 import { serve } from "@hono/node-server";
 import { AppServerBridge } from "./appServerBridge.js";
 import { AppServerManager } from "./appServerManager.js";
@@ -37,6 +38,7 @@ const main = async () => {
     turnState,
     refresher,
     staticRoot: config.staticRoot,
+    uploadDir: path.join(config.dataDir, "uploads"),
     defaultModel: config.defaultModel,
   });
 

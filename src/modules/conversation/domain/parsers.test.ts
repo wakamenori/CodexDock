@@ -22,6 +22,7 @@ import {
   parseReasoningSummaryIndex,
   parseThreadId,
   parseTurnId,
+  parseUserMessageContent,
   parseUserMessageText,
 } from "./parsers";
 
@@ -105,13 +106,45 @@ describe("parseUserMessageText / parseAgentMessageText", () => {
     expect(parseUserMessageText(item)).toBe("a\nb");
   });
 
-  it("marks non-text array as placeholder", () => {
+  it("returns empty text when content has no text", () => {
     const item = { content: [{ kind: "image" }] };
-    expect(parseUserMessageText(item)).toBe("[non-text input]");
+    expect(parseUserMessageText(item)).toBe("");
   });
 
   it("reads direct text", () => {
     expect(parseAgentMessageText({ text: "ok" })).toBe("ok");
+  });
+});
+
+describe("parseUserMessageContent", () => {
+  it("extracts localImage entries", () => {
+    const item = {
+      content: [
+        { type: "localImage", path: "/tmp/uploads/a.png", name: "a.png" },
+        { type: "text", text: "hi" },
+      ],
+    };
+    const result = parseUserMessageContent(item);
+    expect(result.text).toBe("hi");
+    expect(result.images).toEqual([
+      {
+        kind: "localImage",
+        name: "a.png",
+        path: "/tmp/uploads/a.png",
+        url: "/api/uploads/a.png",
+      },
+    ]);
+  });
+
+  it("extracts image urls", () => {
+    const item = {
+      content: [{ type: "image", url: "https://example.com/a.png" }],
+    };
+    const result = parseUserMessageContent(item);
+    expect(result.text).toBe("");
+    expect(result.images).toEqual([
+      { kind: "image", url: "https://example.com/a.png" },
+    ]);
   });
 });
 

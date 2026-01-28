@@ -9,6 +9,7 @@ import type {
   ChatMessage,
   DiffEntry,
   FileChangeEntry,
+  ImageAttachment,
   JsonValue,
   PermissionMode,
   Repo,
@@ -69,6 +70,7 @@ export type UseAppStateResult = {
   fileChanges: Record<string, FileChangeEntry>;
   approvals: ApprovalRequest[];
   inputText: string;
+  attachedImages: ImageAttachment[];
   reviewTargetType: ReviewTargetType;
   reviewBaseBranch: string;
   reviewCommitSha: string;
@@ -78,6 +80,8 @@ export type UseAppStateResult = {
   permissionMode: PermissionMode;
   selectRepo: (repoId: string | null) => void;
   setInputText: (value: string) => void;
+  handleAddImages: (files: File[]) => void;
+  handleRemoveImage: (id: string) => void;
   setReviewTargetType: (value: ReviewTargetType) => void;
   setReviewBaseBranch: (value: string) => void;
   setReviewCommitSha: (value: string) => void;
@@ -106,6 +110,8 @@ const summarizeThreadsForLog = (threads: ThreadSummary[]) =>
   }));
 
 const NEW_THREAD_PREVIEW = "New thread";
+
+type PendingImageAttachment = ImageAttachment & { file: File };
 
 const getArrayValue = (
   record: Record<string, unknown> | undefined,
@@ -165,6 +171,27 @@ const extractModelIds = (payload: unknown): string[] => {
     if (ids.length > 0) return ids;
   }
   return [];
+};
+
+const createAttachmentId = () => {
+  const cryptoObj =
+    typeof globalThis.crypto !== "undefined" ? globalThis.crypto : undefined;
+  if (cryptoObj && typeof cryptoObj.randomUUID === "function") {
+    return cryptoObj.randomUUID();
+  }
+  return `img-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+const createPreviewUrl = (file: File) =>
+  typeof URL !== "undefined" && typeof URL.createObjectURL === "function"
+    ? URL.createObjectURL(file)
+    : "";
+
+const revokePreviewUrl = (url: string) => {
+  if (!url) return;
+  if (typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
+    URL.revokeObjectURL(url);
+  }
 };
 
 const resolveSelectedModel = ({
@@ -227,6 +254,9 @@ export const useConversationState = (): UseAppStateResult => {
   const [permissionMode, setPermissionMode] =
     useState<PermissionMode>("FullAccess");
   const [inputText, setInputText] = useState("");
+  const [pendingImages, setPendingImages] = useState<PendingImageAttachment[]>(
+    [],
+  );
   const [reviewTargetType, setReviewTargetType] =
     useState<ReviewTargetType>("uncommittedChanges");
   const [reviewBaseBranch, setReviewBaseBranch] = useState("");
@@ -249,6 +279,7 @@ export const useConversationState = (): UseAppStateResult => {
   const permissionModeRef = useRef<PermissionMode>("FullAccess");
   const selectedRepoPathRef = useRef<string | null>(null);
   const repoPathByIdRef = useRef<Record<string, string>>({});
+  const pendingImagesRef = useRef<PendingImageAttachment[]>([]);
 
   const selectedRepo = useMemo(
     () => repos.find((repo) => repo.repoId === selectedRepoId) ?? null,
@@ -290,11 +321,52 @@ export const useConversationState = (): UseAppStateResult => {
     [availableModels, defaultModel, modelSettingsLoaded, storedModel],
   );
 
+  useEffect(() => {
+    pendingImagesRef.current = pendingImages;
+  }, [pendingImages]);
+
+  useEffect(() => {
+    return () => {
+      for (const image of pendingImagesRef.current) {
+        revokePreviewUrl(image.previewUrl);
+      }
+    };
+  }, []);
+
   const handlePermissionModeChange = useCallback((mode: PermissionMode) => {
     permissionModeTouchedRef.current = true;
     if (PERMISSION_MODE_OPTIONS.includes(mode)) {
       setPermissionMode(mode);
     }
+  }, []);
+
+  const handleAddImages = useCallback((files: File[]) => {
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      toast.error("Only image files can be attached");
+      return;
+    }
+    setPendingImages((prev) => [
+      ...prev,
+      ...imageFiles.map((file) => ({
+        id: createAttachmentId(),
+        file,
+        name: file.name,
+        previewUrl: createPreviewUrl(file),
+        size: file.size,
+        type: file.type,
+      })),
+    ]);
+  }, []);
+
+  const handleRemoveImage = useCallback((id: string) => {
+    setPendingImages((prev) => {
+      const target = prev.find((image) => image.id === id);
+      if (target) {
+        revokePreviewUrl(target.previewUrl);
+      }
+      return prev.filter((image) => image.id !== id);
+    });
   }, []);
 
   const repoGroups = useMemo(
@@ -1093,7 +1165,9 @@ export const useConversationState = (): UseAppStateResult => {
   const handleSend = useCallback(async () => {
     const originalText = inputText;
     const text = originalText.trim();
-    if (!selectedRepoId || !selectedThreadId || !text) return;
+    const attachments = pendingImages;
+    const hasInput = text.length > 0 || attachments.length > 0;
+    if (!selectedRepoId || !selectedThreadId || !hasInput) return;
     const modelsLoaded = availableModels !== undefined;
     const modelsReady = modelsLoaded && availableModels.length > 0;
     if (!modelsReady || !selectedModel) {
@@ -1105,19 +1179,6 @@ export const useConversationState = (): UseAppStateResult => {
       ...status,
       processing: true,
     }));
-    const pendingId = `pending-${Date.now()}-${Math.random()
-      .toString(16)
-      .slice(2)}`;
-    updateThreadMessages(selectedThreadId, (list) => [
-      ...list,
-      {
-        id: pendingId,
-        role: "user",
-        text,
-        createdAt: Date.now(),
-        pending: true,
-      },
-    ]);
     setInputText("");
     const nowIso = new Date().toISOString();
     const currentPreview =
@@ -1129,9 +1190,11 @@ export const useConversationState = (): UseAppStateResult => {
         (thread) => thread.threadId === selectedThreadId,
       )?.lastMessageAt ?? null;
     updateThreadLastMessageAt(selectedRepoId, selectedThreadId, nowIso);
+    const previewText =
+      text.length > 0 ? text : attachments.length > 0 ? "[image]" : "";
     const shouldUpdatePreview = currentPreview?.trim() === NEW_THREAD_PREVIEW;
-    if (shouldUpdatePreview) {
-      updateThreadPreview(selectedRepoId, selectedThreadId, text);
+    if (shouldUpdatePreview && previewText) {
+      updateThreadPreview(selectedRepoId, selectedThreadId, previewText);
     }
     try {
       permissionModeByThreadRef.current[selectedThreadId] = permissionMode;
@@ -1139,19 +1202,57 @@ export const useConversationState = (): UseAppStateResult => {
         permissionMode,
         selectedRepo?.path,
       );
+      const uploadedImages =
+        attachments.length > 0
+          ? await api.uploadImages(attachments.map((image) => image.file))
+          : [];
+      const pendingId = `pending-${Date.now()}-${Math.random()
+        .toString(16)
+        .slice(2)}`;
+      const pendingImages = uploadedImages.map((image) => ({
+        kind: "localImage" as const,
+        path: image.path,
+        url: image.url,
+        name: image.name,
+        mimeType: image.type,
+      }));
+      updateThreadMessages(selectedThreadId, (list) => [
+        ...list,
+        {
+          id: pendingId,
+          role: "user",
+          text,
+          images: pendingImages.length > 0 ? pendingImages : undefined,
+          createdAt: Date.now(),
+          pending: true,
+        },
+      ]);
+      const input = [
+        ...(text.length > 0 ? [{ type: "text" as const, text }] : []),
+        ...uploadedImages.map((image) => ({
+          type: "localImage" as const,
+          path: image.path,
+        })),
+      ];
       const turn = await api.startTurn(
         selectedRepoId,
         selectedThreadId,
-        [{ type: "text", text }],
+        input,
         { model: modelToSend, ...permissionOptions },
       );
       setActiveTurnByThread((prev) => ({
         ...prev,
         [selectedThreadId]: turn.turnId,
       }));
+      setPendingImages((prev) => {
+        for (const image of prev) {
+          revokePreviewUrl(image.previewUrl);
+        }
+        return [];
+      });
     } catch (error) {
       updateThreadMessages(selectedThreadId, (list) =>
-        list.filter((item) => item.id !== pendingId),
+        list.filter((item) => !item.pending),
       );
       updateThreadStatus(selectedThreadId, (status) => ({
         ...status,
@@ -1161,7 +1262,7 @@ export const useConversationState = (): UseAppStateResult => {
         rollbackThreadPreview(
           selectedRepoId,
           selectedThreadId,
-          text,
+          previewText,
           currentPreview,
         );
       }
@@ -1176,6 +1277,7 @@ export const useConversationState = (): UseAppStateResult => {
     }
   }, [
     inputText,
+    pendingImages,
     selectedRepoId,
     selectedThreadId,
     selectedModel,
@@ -1421,6 +1523,7 @@ export const useConversationState = (): UseAppStateResult => {
     toolItems,
     approvals,
     inputText,
+    attachedImages: pendingImages,
     reviewTargetType,
     reviewBaseBranch,
     reviewCommitSha,
@@ -1430,6 +1533,8 @@ export const useConversationState = (): UseAppStateResult => {
     permissionMode,
     selectRepo,
     setInputText,
+    handleAddImages,
+    handleRemoveImage,
     setReviewTargetType,
     setReviewBaseBranch,
     setReviewCommitSha,

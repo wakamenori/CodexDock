@@ -37,6 +37,7 @@ vi.mock("../../../api", () => {
       createThread: vi.fn(),
       resumeThread: vi.fn(),
       startTurn: vi.fn(),
+      uploadImages: vi.fn(),
       startReview: vi.fn(),
       cancelTurn: vi.fn(),
     },
@@ -125,6 +126,7 @@ const setupHook = async (
   mockedApi.updateModelSetting.mockResolvedValue(settings.storedModel);
   mockedApi.resumeThread.mockResolvedValue({});
   mockedApi.updateRepo.mockResolvedValue(repo);
+  mockedApi.uploadImages.mockResolvedValue([]);
 
   const hook = renderHook(() => useConversationState());
   await waitFor(() => {
@@ -314,6 +316,41 @@ describe("useConversationState handleSend", () => {
       resolveStart({ turnId: "turn-1", status: "running" });
       await sendPromise;
     });
+  });
+
+  it("uploads images and sends localImage inputs", async () => {
+    const hook = await setupHook();
+    const file = new File(["data"], "image.png", { type: "image/png" });
+    mockedApi.uploadImages.mockResolvedValue([
+      {
+        id: "up-1",
+        name: "image.png",
+        path: "/data/uploads/up-1.png",
+        url: "/api/uploads/up-1.png",
+        size: 4,
+        type: "image/png",
+      },
+    ]);
+    mockedApi.startTurn.mockResolvedValue({
+      turnId: "turn-1",
+      status: "running",
+    });
+
+    await act(async () => {
+      hook.result.current.handleAddImages([file]);
+    });
+
+    await act(async () => {
+      await hook.result.current.handleSend();
+    });
+
+    expect(mockedApi.uploadImages).toHaveBeenCalledWith([file]);
+    expect(mockedApi.startTurn).toHaveBeenCalledWith(
+      "repo-1",
+      "thread-1",
+      [{ type: "localImage", path: "/data/uploads/up-1.png" }],
+      expect.any(Object),
+    );
   });
 
   it("optimistically updates preview for new thread", async () => {

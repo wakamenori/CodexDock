@@ -25,3 +25,20 @@ export const toRelativePath = (
   const withoutDrive = normalized.replace(/^[A-Za-z]:/, "");
   return withoutDrive.replace(/^\/+/, "").replace(/^\.\/+/, "");
 };
+
+export const extractFileName = (value?: string | null): string | null => {
+  if (!value) return null;
+  const normalized = value.replace(/\\/g, "/");
+  const parts = normalized.split("/");
+  const last = parts[parts.length - 1];
+  return last ? last : null;
+};
+
+export const buildUploadImageUrl = (value?: string | null): string | null => {
+  if (!value) return null;
+  const normalized = value.replace(/\\/g, "/");
+  if (!normalized.includes("/uploads/")) return null;
+  const fileName = extractFileName(normalized);
+  if (!fileName) return null;
+  return `/api/uploads/${encodeURIComponent(fileName)}`;
+};

@@ -1,4 +1,5 @@
-import { readFile, stat } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { type Context, Hono } from "hono";
 import { serveStatic } from "hono/serve-static";
@@ -42,6 +43,38 @@ const parseJsonOptional = async (c: Context) => {
   } catch {
     throw badRequest("Invalid JSON body");
   }
+};
+
+type FormDataFile = {
+  arrayBuffer: () => Promise<ArrayBuffer>;
+  name?: string;
+  type?: string;
+  size?: number;
+};
+
+const isFormDataFile = (value: unknown): value is FormDataFile => {
+  if (!value || typeof value !== "object") return false;
+  return (
+    "arrayBuffer" in value &&
+    typeof (value as FormDataFile).arrayBuffer === "function"
+  );
+};
+
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "image/bmp": ".bmp",
+  "image/svg+xml": ".svg",
+};
+
+const resolveImageExtension = (name: string | undefined, type?: string) => {
+  const ext = name ? path.extname(name).toLowerCase() : "";
+  if (ext) return ext;
+  if (type && IMAGE_EXTENSIONS[type]) return IMAGE_EXTENSIONS[type];
+  return "";
 };
 
 const getTimeString = (
@@ -213,6 +246,7 @@ type CreateAppOptions = {
   refresher: ThreadListRefresher;
   pathPicker?: RepoPathPicker;
   staticRoot?: string;
+  uploadDir?: string;
   defaultModel?: string | null;
 };
 
@@ -220,6 +254,8 @@ export const createApp = (options: CreateAppOptions) => {
   const { registry, manager, logger, turnState, refresher } = options;
   const pathPicker = options.pathPicker ?? pickRepoPath;
   const staticRoot = options.staticRoot;
+  const uploadDir =
+    options.uploadDir ?? path.join(process.cwd(), "data", "uploads");
   const defaultModel = options.defaultModel ?? null;
   const app = new Hono();
 
@@ -290,6 +326,51 @@ export const createApp = (options: CreateAppOptions) => {
       model: rawModel ?? null,
     });
     return c.json({ storedModel: settings.model ?? null });
+  });
+
+  app.post("/api/uploads", async (c) => {
+    let formData: unknown;
+    try {
+      formData = await c.req.formData();
+    } catch {
+      throw badRequest("Invalid multipart form data");
+    }
+    if (!formData || typeof formData !== "object") {
+      throw badRequest("Invalid multipart form data");
+    }
+    const entries = (
+      formData as { getAll: (name: string) => unknown[] }
+    ).getAll("files");
+    const files: FormDataFile[] = entries.filter(isFormDataFile);
+    if (files.length === 0) {
+      throw badRequest("No files uploaded", { field: "files" });
+    }
+    await mkdir(uploadDir, { recursive: true });
+    const uploads: JsonObject[] = [];
+    for (const file of files) {
+      const mimeType = typeof file.type === "string" ? file.type : "";
+      if (!mimeType.startsWith("image/")) {
+        throw badRequest("Only image files are supported", {
+          name: file.name ?? null,
+          type: mimeType,
+        });
+      }
+      const extension = resolveImageExtension(file.name, mimeType);
+      const id = randomUUID();
+      const fileName = `${id}${extension}`;
+      const filePath = path.join(uploadDir, fileName);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await writeFile(filePath, buffer);
+      uploads.push({
+        id,
+        name: file.name ?? fileName,
+        path: filePath,
+        url: `/api/uploads/${encodeURIComponent(fileName)}`,
+        size: typeof file.size === "number" ? file.size : buffer.length,
+        type: mimeType,
+      });
+    }
+    return c.json({ uploads }, 201);
   });
 
   app.post("/api/repos/pick-path", async (c) => {
@@ -589,6 +670,51 @@ export const createApp = (options: CreateAppOptions) => {
       throw appServerError(error);
     }
   });
+
+  const resolvedUploadRoot = path.resolve(uploadDir);
+  const imageContentTypes: Record<string, string> = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".svg": "image/svg+xml",
+  };
+
+  app.get("/api/uploads/:fileName", async (c) => {
+    const fileName = c.req.param("fileName");
+    if (!fileName) {
+      throw notFound("Upload not found");
+    }
+    const safeName = path.basename(fileName);
+    if (safeName !== fileName) {
+      throw notFound("Upload not found");
+    }
+    const filePath = path.join(resolvedUploadRoot, safeName);
+    const resolvedPath = path.resolve(filePath);
+    if (!resolvedPath.startsWith(resolvedUploadRoot)) {
+      throw notFound("Upload not found");
+    }
+    try {
+      const content = await readFile(resolvedPath);
+      const ext = path.extname(safeName).toLowerCase();
+      const contentType = imageContentTypes[ext] ?? "application/octet-stream";
+      c.header("Content-Type", contentType);
+      return c.body(content);
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code === "ENOENT") {
+        throw notFound("Upload not found");
+      }
+      throw error;
+    }
+  });
+
+  logger.info(
+    { component: "uploads", root: resolvedUploadRoot },
+    "uploads_enabled",
+  );
 
   const isReservedPath = (requestPath: string) =>
     requestPath === "/api" ||

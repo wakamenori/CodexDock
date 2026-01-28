@@ -24,7 +24,7 @@ import {
   parseThreadId,
   parseToolItem,
   parseTurnId,
-  parseUserMessageText,
+  parseUserMessageContent,
 } from "../domain/parsers";
 import {
   appendToolItemOutputDelta,
@@ -218,9 +218,9 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
       const itemId = parseItemId(params, `${method}-${Date.now()}`);
 
       if (itemType === "userMessage") {
-        const text = parseUserMessageText(item);
+        const { text, images } = parseUserMessageContent(item);
         store.updateMessages(threadId, (list) =>
-          applyUserMessageStart(list, itemId, text),
+          applyUserMessageStart(list, itemId, text, images),
         );
       }
 

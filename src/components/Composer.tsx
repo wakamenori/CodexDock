@@ -1,11 +1,17 @@
+import { useRef } from "react";
 import {
   normalizePermissionMode,
   PERMISSION_MODE_OPTIONS,
 } from "../modules/conversation/domain/permissionMode";
-import type { PermissionMode, ReviewTargetType } from "../types";
+import type {
+  ImageAttachment,
+  PermissionMode,
+  ReviewTargetType,
+} from "../types";
 
 type ComposerProps = {
   inputText: string;
+  attachedImages: ImageAttachment[];
   reviewTargetType: ReviewTargetType;
   reviewBaseBranch: string;
   reviewCommitSha: string;
@@ -17,6 +23,8 @@ type ComposerProps = {
   availableModels: string[] | undefined;
   permissionMode: PermissionMode;
   onInputTextChange: (value: string) => void;
+  onAddImages: (files: File[]) => void;
+  onRemoveImage: (id: string) => void;
   onReviewTargetTypeChange: (value: ReviewTargetType) => void;
   onReviewBaseBranchChange: (value: string) => void;
   onReviewCommitShaChange: (value: string) => void;
@@ -30,6 +38,7 @@ type ComposerProps = {
 
 export function Composer({
   inputText,
+  attachedImages,
   reviewTargetType,
   reviewBaseBranch,
   reviewCommitSha,
@@ -41,6 +50,8 @@ export function Composer({
   availableModels,
   permissionMode,
   onInputTextChange,
+  onAddImages,
+  onRemoveImage,
   onReviewTargetTypeChange,
   onReviewBaseBranchChange,
   onReviewCommitShaChange,
@@ -56,6 +67,11 @@ export function Composer({
   const displayModels = normalizedModel
     ? Array.from(new Set([normalizedModel, ...modelOptions]))
     : modelOptions;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const canSend =
+    Boolean(selectedThreadId) &&
+    !running &&
+    (inputText.trim().length > 0 || attachedImages.length > 0);
   const reviewReady =
     reviewTargetType === "uncommittedChanges" ||
     (reviewTargetType === "baseBranch" && reviewBaseBranch.trim().length > 0) ||
@@ -127,6 +143,33 @@ export function Composer({
             Review
           </button>
         </div>
+        {attachedImages.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {attachedImages.map((image) => (
+              <div
+                key={image.id}
+                className="relative overflow-hidden rounded-lg border border-ink-800 bg-ink-950/60"
+              >
+                <img
+                  src={image.previewUrl}
+                  alt={image.name || "attached image"}
+                  className="h-20 w-28 object-cover"
+                  loading="lazy"
+                />
+                <button
+                  type="button"
+                  className="absolute right-1 top-1 rounded-md bg-ink-900/80 px-1.5 py-0.5 text-[10px] text-ink-200 hover:text-ink-50 disabled:opacity-50"
+                  onClick={() => onRemoveImage(image.id)}
+                  disabled={running}
+                  aria-label="Remove image"
+                  title="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <textarea
           className="h-28 w-full resize-none bg-transparent text-sm text-ink-200 outline-none placeholder:text-ink-300"
           placeholder={
@@ -136,13 +179,30 @@ export function Composer({
           }
           value={inputText}
           onChange={(event) => onInputTextChange(event.target.value)}
+          onPaste={(event) => {
+            if (!selectedThreadId || running) return;
+            const files = Array.from(event.clipboardData?.files ?? []);
+            if (files.length === 0) return;
+            event.preventDefault();
+            onAddImages(files);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            if (!selectedThreadId || running) return;
+            const files = Array.from(event.dataTransfer?.files ?? []);
+            if (files.length === 0) return;
+            onAddImages(files);
+          }}
           onKeyDown={(event) => {
             const isComposing =
               event.nativeEvent.isComposing || event.key === "Process";
             const isSendShortcut = event.ctrlKey || event.metaKey;
             if (event.key !== "Enter" || !isSendShortcut || isComposing) return;
             event.preventDefault();
-            if (running || !selectedThreadId || !inputText.trim()) return;
+            if (!canSend) return;
             void onSend();
           }}
           disabled={!selectedThreadId}
@@ -150,6 +210,29 @@ export function Composer({
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-300">
           <span>{running ? "Streaming..." : null}</span>
           <div className="flex items-center gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                if (files.length > 0) {
+                  onAddImages(files);
+                }
+                event.target.value = "";
+              }}
+              disabled={!selectedThreadId || running}
+            />
+            <button
+              type="button"
+              className="rounded-md border border-ink-600 px-3 py-2 text-xs font-semibold text-ink-100 disabled:opacity-50"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!selectedThreadId || running}
+            >
+              Image
+            </button>
             <select
               aria-label="Model"
               className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-100"
@@ -193,7 +276,7 @@ export function Composer({
             <button
               className="rounded-md bg-neon-500/90 px-4 py-2 text-xs font-semibold text-ink-900 disabled:opacity-50"
               onClick={onSend}
-              disabled={!selectedThreadId || running || !inputText.trim()}
+              disabled={!canSend}
               type="button"
             >
               Send

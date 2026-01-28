@@ -151,16 +151,21 @@ export const applyUserMessageStart = (
   messages: ChatMessage[],
   itemId: string,
   text: string | undefined,
+  images?: ChatMessage["images"],
 ): ChatMessage[] => {
   const list = clone(messages);
   const existingIdx = findByItemId(list, itemId);
   if (existingIdx >= 0) {
+    const existingImages = list[existingIdx].images;
+    const nextImages =
+      images && images.length > 0 ? images : (existingImages ?? undefined);
     list[existingIdx] = {
       ...list[existingIdx],
       role: "user",
       itemId,
       pending: false,
       text: preferExistingText(text, list[existingIdx].text),
+      images: nextImages,
     };
     return list;
   }
@@ -168,12 +173,16 @@ export const applyUserMessageStart = (
     (entry) => entry.role === "user" && entry.pending,
   );
   if (pendingIdx >= 0) {
+    const existingImages = list[pendingIdx].images;
+    const nextImages =
+      images && images.length > 0 ? images : (existingImages ?? undefined);
     list[pendingIdx] = {
       ...list[pendingIdx],
       role: "user",
       itemId,
       pending: false,
       text: preferExistingText(text, list[pendingIdx].text),
+      images: nextImages,
     };
     return list;
   }
@@ -182,6 +191,7 @@ export const applyUserMessageStart = (
     itemId,
     role: "user",
     text: text ?? "",
+    images: images && images.length > 0 ? images : undefined,
     createdAt: now(),
   });
   return list;

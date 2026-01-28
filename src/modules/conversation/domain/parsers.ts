@@ -1,4 +1,8 @@
-import { normalizeRootPath as normalizeRootPathShared } from "../../../shared/paths";
+import {
+  buildUploadImageUrl,
+  extractFileName,
+  normalizeRootPath as normalizeRootPathShared,
+} from "../../../shared/paths";
 import { asRecord, getRecordId } from "../../../shared/records";
 import type {
   ChatMessage,
@@ -6,6 +10,7 @@ import type {
   JsonValue,
   ToolItemType,
   ToolTimelineItem,
+  UserMessageImage,
 } from "../../../types";
 
 const REASONING_SUMMARY_LIMIT = 4000;
@@ -206,24 +211,69 @@ export const parseItemId = (params: unknown, fallback: string) => {
   );
 };
 
-export const parseUserMessageText = (item: Record<string, unknown>): string => {
+export const parseUserMessageContent = (
+  item: Record<string, unknown>,
+): { text: string; images: UserMessageImage[] } => {
   const content = item.content;
+  const parts: string[] = [];
+  const images: UserMessageImage[] = [];
+
   if (Array.isArray(content)) {
-    const parts: string[] = [];
     for (const entry of content) {
       const entryRecord = asRecord(entry);
       if (!entryRecord) continue;
+      const entryType =
+        typeof entryRecord.type === "string"
+          ? entryRecord.type
+          : typeof entryRecord.kind === "string"
+            ? entryRecord.kind
+            : undefined;
+      if (entryType === "text") {
+        const text = entryRecord.text;
+        if (typeof text === "string") {
+          parts.push(text);
+        }
+        continue;
+      }
+      if (entryType === "image") {
+        const url = entryRecord.url;
+        if (typeof url === "string" && url.length > 0) {
+          images.push({ kind: "image", url });
+        }
+        continue;
+      }
+      if (entryType === "localImage") {
+        const path = entryRecord.path;
+        if (typeof path === "string" && path.length > 0) {
+          images.push({
+            kind: "localImage",
+            path,
+            name:
+              typeof entryRecord.name === "string"
+                ? entryRecord.name
+                : (extractFileName(path) ?? undefined),
+            url: buildUploadImageUrl(path) ?? undefined,
+          });
+        }
+        continue;
+      }
       const text = entryRecord.text;
       if (typeof text === "string") {
         parts.push(text);
       }
     }
-    if (parts.length > 0) return parts.join("\n");
-    if (content.length > 0) return "[non-text input]";
   }
-  const text = item.text;
-  return typeof text === "string" ? text : "";
+
+  const textFromContent = parts.length > 0 ? parts.join("\n") : "";
+  if (textFromContent) {
+    return { text: textFromContent, images };
+  }
+  const directText = typeof item.text === "string" ? item.text : "";
+  return { text: directText, images };
 };
+
+export const parseUserMessageText = (item: Record<string, unknown>): string =>
+  parseUserMessageContent(item).text;
 
 export const parseAgentMessageText = (
   item: Record<string, unknown>,
@@ -291,13 +341,14 @@ export const buildMessagesFromResume = (
     const itemType = item.type;
     const itemId = getRecordId(item, "id") ?? `${threadId}-${idx}`;
     if (itemType === "userMessage") {
-      const text = parseUserMessageText(item);
-      if (text) {
+      const { text, images } = parseUserMessageContent(item);
+      if (text || images.length > 0) {
         messages.push({
           id: itemId,
           itemId,
           role: "user",
           text,
+          images: images.length > 0 ? images : undefined,
           createdAt: baseTime + idx,
         });
       }
