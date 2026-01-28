@@ -132,10 +132,56 @@ body {
   color: #c0caf5;
 }
 
-.markdown .code-copy {
+.markdown .code-toolbar {
   position: absolute;
   top: 0.6rem;
   right: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+  pointer-events: none;
+}
+
+.markdown .code-block:hover .code-toolbar,
+.markdown .code-block:focus-within .code-toolbar {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.markdown .code-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.15rem;
+  border: 1px solid rgba(122, 162, 247, 0.35);
+  border-radius: 999px;
+  background: rgba(15, 17, 26, 0.65);
+  min-width: 0;
+}
+
+.markdown .code-toggle button {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: #a9b1d6;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
+}
+
+.markdown .code-copy {
   padding: 0.2rem 0.45rem;
   border-radius: 0.4rem;
   border: 1px solid rgba(122, 162, 247, 0.4);
@@ -144,26 +190,65 @@ body {
   font-size: 10px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  opacity: 0;
-  transform: translateY(-2px);
   transition:
-    opacity 150ms ease,
-    transform 150ms ease,
     border-color 150ms ease,
-    color 150ms ease;
-  pointer-events: none;
+    color 150ms ease,
+    background 150ms ease;
 }
 
-.markdown .code-block:hover .code-copy,
-.markdown .code-block:focus-within .code-copy {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
+.markdown .code-toggle::before {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  width: calc(50% - 0.15rem);
+  border-radius: 999px;
+  background: rgba(26, 27, 38, 0.95);
+  border: 1px solid rgba(122, 162, 247, 0.55);
+  transition: transform 150ms ease;
 }
 
-.markdown .code-copy:hover {
+.markdown .code-toggle[data-mode="render"]::before {
+  transform: translateX(0);
+}
+
+.markdown .code-toggle[data-mode="code"]::before {
+  transform: translateX(calc(100% + 0.4rem));
+}
+
+.markdown .code-toggle button {
+  position: relative;
+  z-index: 1;
+}
+
+.markdown .code-toggle button[data-active="true"] {
+  color: #c0caf5;
+}
+
+.markdown .code-copy:hover,
+.markdown .code-toggle button:hover {
   border-color: rgba(122, 162, 247, 0.7);
   color: #c0caf5;
+}
+
+.markdown .mermaid-render {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(65, 72, 104, 0.5);
+  background: #0f111a;
+  overflow-x: auto;
+}
+
+.markdown .mermaid-loading,
+.markdown .mermaid-error {
+  font-size: 0.75rem;
+  color: #a9b1d6;
+}
+
+.markdown .mermaid-render svg {
+  height: auto;
+  max-width: 100%;
 }
 
 .markdown .hljs {
