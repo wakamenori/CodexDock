@@ -112,7 +112,7 @@ const setupHook = async (
     storedModel: "gpt-5.2-codex",
     defaultModel: "gpt-5.2-codex",
   };
-  const permissionMode = options?.permissionMode ?? "ReadOnly";
+  const permissionMode = options?.permissionMode ?? "FullAccess";
 
   mockedApi.listRepos.mockResolvedValue([repo]);
   mockedApi.startSession.mockResolvedValue(undefined);
@@ -176,7 +176,7 @@ describe("useConversationState websocket subscriptions", () => {
       defaultModel: "gpt-5.2-codex",
     });
     mockedApi.getPermissionModeSettings.mockResolvedValue({
-      defaultMode: "ReadOnly",
+      defaultMode: "FullAccess",
     });
     mockedApi.resumeThread.mockResolvedValue({});
     mockedApi.updateRepo.mockResolvedValue(repos[0]);
@@ -728,7 +728,7 @@ describe("useConversationState handleCreateThread", () => {
       defaultModel: null,
     });
     mockedApi.getPermissionModeSettings.mockResolvedValue({
-      defaultMode: "ReadOnly",
+      defaultMode: "FullAccess",
     });
     mockedApi.resumeThread.mockResolvedValue({});
     mockedApi.updateRepo.mockResolvedValue(repos[0]);

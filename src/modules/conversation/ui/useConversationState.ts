@@ -225,7 +225,7 @@ export const useConversationState = (): UseAppStateResult => {
   const [defaultModel, setDefaultModel] = useState<string | null>(null);
   const [modelSettingsLoaded, setModelSettingsLoaded] = useState(false);
   const [permissionMode, setPermissionMode] =
-    useState<PermissionMode>("ReadOnly");
+    useState<PermissionMode>("FullAccess");
   const [inputText, setInputText] = useState("");
   const [reviewTargetType, setReviewTargetType] =
     useState<ReviewTargetType>("uncommittedChanges");
@@ -246,7 +246,7 @@ export const useConversationState = (): UseAppStateResult => {
   const permissionModeTouchedRef = useRef(false);
   const permissionModeByThreadRef = useRef<Record<string, PermissionMode>>({});
   const autoApprovedItemsByThreadRef = useRef<Record<string, Set<string>>>({});
-  const permissionModeRef = useRef<PermissionMode>("ReadOnly");
+  const permissionModeRef = useRef<PermissionMode>("FullAccess");
   const selectedRepoPathRef = useRef<string | null>(null);
   const repoPathByIdRef = useRef<Record<string, string>>({});
 

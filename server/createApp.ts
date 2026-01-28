@@ -267,7 +267,9 @@ export const createApp = (options: CreateAppOptions) => {
   app.get("/api/settings/permission-mode", async (c) => {
     const settings = await registry.getSettings();
     return c.json({
-      defaultMode: normalizePermissionMode(settings.permissionMode),
+      defaultMode: normalizePermissionMode(
+        settings.permissionMode ?? "FullAccess",
+      ),
     });
   });
 

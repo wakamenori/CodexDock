@@ -17,7 +17,7 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
     activeTurnId: null,
     selectedModel: null,
     availableModels: [],
-    permissionMode: "ReadOnly",
+    permissionMode: "FullAccess",
     onInputTextChange: vi.fn(),
     onReviewTargetTypeChange: vi.fn(),
     onReviewBaseBranchChange: vi.fn(),
