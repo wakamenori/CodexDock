@@ -128,12 +128,16 @@ export class RepoRegistry {
       if (Object.hasOwn(patch, "model")) {
         nextSettings.model = patch.model ?? null;
       }
+      if (Object.hasOwn(patch, "reasoningEffort")) {
+        nextSettings.reasoningEffort = patch.reasoningEffort ?? null;
+      }
       const next = { ...state, settings: nextSettings };
       await this.save(next);
       this.logger.info(
         {
           component: "repo_registry",
           model: nextSettings.model ?? null,
+          reasoningEffort: nextSettings.reasoningEffort ?? null,
         },
         "settings_updated",
       );

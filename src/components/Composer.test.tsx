@@ -18,6 +18,8 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
     activeTurnId: null,
     selectedModel: null,
     availableModels: [],
+    selectedReasoningEffort: "medium",
+    availableReasoningEfforts: [{ effort: "medium" }],
     permissionMode: "FullAccess",
     onInputTextChange: vi.fn(),
     onReviewTargetTypeChange: vi.fn(),
@@ -30,6 +32,7 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
     onReviewStart: vi.fn(),
     onStop: vi.fn(),
     onModelChange: vi.fn(),
+    onReasoningEffortChange: vi.fn(),
     onPermissionModeChange: vi.fn(),
     ...overrides,
   };
@@ -106,5 +109,21 @@ describe("Composer", () => {
     });
     const sendButton = screen.getByRole("button", { name: "Send" });
     expect((sendButton as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("updates reasoning effort on change", () => {
+    const props = setup({
+      selectedReasoningEffort: "medium",
+      availableReasoningEfforts: [
+        { effort: "low" },
+        { effort: "medium" },
+        { effort: "high" },
+      ],
+    });
+    const effortSelect = screen.getByRole("combobox", {
+      name: "Reasoning effort",
+    });
+    fireEvent.change(effortSelect, { target: { value: "high" } });
+    expect(props.onReasoningEffortChange).toHaveBeenCalledWith("high");
   });
 });

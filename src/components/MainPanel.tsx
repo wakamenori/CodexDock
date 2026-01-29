@@ -4,6 +4,8 @@ import type {
   FileChangeEntry,
   ImageAttachment,
   PermissionMode,
+  ReasoningEffort,
+  ReasoningEffortOption,
   ReviewTargetType,
   ToolTimelineItem,
 } from "../types";
@@ -30,6 +32,8 @@ type MainPanelProps = {
   selectedRepoId: string | null;
   selectedModel: string | null;
   availableModels: string[] | undefined;
+  selectedReasoningEffort: ReasoningEffort | null;
+  availableReasoningEfforts: ReasoningEffortOption[] | undefined;
   permissionMode: PermissionMode;
   onInputTextChange: (value: string) => void;
   onReviewTargetTypeChange: (value: ReviewTargetType) => void;
@@ -42,6 +46,7 @@ type MainPanelProps = {
   onReviewStart: () => void | Promise<void>;
   onStop: () => void | Promise<void>;
   onModelChange: (model: string | null) => void;
+  onReasoningEffortChange: (effort: ReasoningEffort) => void;
   onPermissionModeChange: (mode: PermissionMode) => void;
   onApprove: (
     repoId: string,
@@ -69,6 +74,8 @@ export function MainPanel({
   selectedRepoId,
   selectedModel,
   availableModels,
+  selectedReasoningEffort,
+  availableReasoningEfforts,
   permissionMode,
   onInputTextChange,
   onReviewTargetTypeChange,
@@ -81,6 +88,7 @@ export function MainPanel({
   onReviewStart,
   onStop,
   onModelChange,
+  onReasoningEffortChange,
   onPermissionModeChange,
   onApprove,
 }: MainPanelProps) {
@@ -124,6 +132,8 @@ export function MainPanel({
         activeTurnId={activeTurnId}
         selectedModel={selectedModel}
         availableModels={availableModels}
+        selectedReasoningEffort={selectedReasoningEffort}
+        availableReasoningEfforts={availableReasoningEfforts}
         permissionMode={permissionMode}
         onInputTextChange={onInputTextChange}
         onReviewTargetTypeChange={onReviewTargetTypeChange}
@@ -136,6 +146,7 @@ export function MainPanel({
         onReviewStart={onReviewStart}
         onStop={onStop}
         onModelChange={onModelChange}
+        onReasoningEffortChange={onReasoningEffortChange}
         onPermissionModeChange={onPermissionModeChange}
       />
     </main>

@@ -300,6 +300,13 @@ export const createApp = (options: CreateAppOptions) => {
     });
   });
 
+  app.get("/api/settings/reasoning-effort", async (c) => {
+    const settings = await registry.getSettings();
+    return c.json({
+      storedReasoningEffort: settings.reasoningEffort ?? null,
+    });
+  });
+
   app.get("/api/settings/permission-mode", async (c) => {
     const settings = await registry.getSettings();
     return c.json({
@@ -326,6 +333,31 @@ export const createApp = (options: CreateAppOptions) => {
       model: rawModel ?? null,
     });
     return c.json({ storedModel: settings.model ?? null });
+  });
+
+  app.put("/api/settings/reasoning-effort", async (c) => {
+    const body = await parseJson(c);
+    if (!isRecord(body)) {
+      throw badRequest("reasoningEffort is required", {
+        field: "reasoningEffort",
+      });
+    }
+    const hasEffort = Object.hasOwn(body, "reasoningEffort");
+    if (!hasEffort) {
+      throw badRequest("reasoningEffort is required", {
+        field: "reasoningEffort",
+      });
+    }
+    const rawEffort = body.reasoningEffort;
+    if (rawEffort !== null && typeof rawEffort !== "string") {
+      throw badRequest("reasoningEffort must be a string or null", {
+        field: "reasoningEffort",
+      });
+    }
+    const settings = await registry.updateSettings({
+      reasoningEffort: rawEffort ?? null,
+    });
+    return c.json({ storedReasoningEffort: settings.reasoningEffort ?? null });
   });
 
   app.post("/api/uploads", async (c) => {

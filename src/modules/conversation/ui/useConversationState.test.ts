@@ -4,7 +4,12 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../../api";
-import type { PermissionMode, Repo, ThreadSummary } from "../../../types";
+import type {
+  PermissionMode,
+  ReasoningEffort,
+  Repo,
+  ThreadSummary,
+} from "../../../types";
 import { useConversationState } from "./useConversationState";
 
 vi.mock("../../../api", () => {
@@ -32,8 +37,10 @@ vi.mock("../../../api", () => {
       listThreads: vi.fn(),
       listModels: vi.fn(),
       getModelSettings: vi.fn(),
+      getReasoningEffortSettings: vi.fn(),
       getPermissionModeSettings: vi.fn(),
       updateModelSetting: vi.fn(),
+      updateReasoningEffortSetting: vi.fn(),
       createThread: vi.fn(),
       resumeThread: vi.fn(),
       startTurn: vi.fn(),
@@ -93,9 +100,10 @@ const mockedApi = vi.mocked(api);
 const setupHook = async (
   threadsOverride?: ThreadSummary[],
   options?: {
-    models?: string[];
+    modelsPayload?: unknown;
     settings?: { storedModel: string | null; defaultModel: string | null };
     permissionMode?: PermissionMode;
+    reasoningEffort?: ReasoningEffort;
   },
 ) => {
   const repo: Repo = {
@@ -108,22 +116,27 @@ const setupHook = async (
     { threadId: "thread-1", cwd: "/repo" },
   ];
 
-  const models = options?.models ?? ["gpt-5.2-codex"];
+  const modelsPayload = options?.modelsPayload ?? ["gpt-5.2-codex"];
   const settings = options?.settings ?? {
     storedModel: "gpt-5.2-codex",
     defaultModel: "gpt-5.2-codex",
   };
   const permissionMode = options?.permissionMode ?? "FullAccess";
+  const reasoningEffort = options?.reasoningEffort ?? "medium";
 
   mockedApi.listRepos.mockResolvedValue([repo]);
   mockedApi.startSession.mockResolvedValue(undefined);
   mockedApi.listThreads.mockResolvedValue(threads);
-  mockedApi.listModels.mockResolvedValue(models);
+  mockedApi.listModels.mockResolvedValue(modelsPayload);
   mockedApi.getModelSettings.mockResolvedValue(settings);
+  mockedApi.getReasoningEffortSettings.mockResolvedValue({
+    storedReasoningEffort: reasoningEffort,
+  });
   mockedApi.getPermissionModeSettings.mockResolvedValue({
     defaultMode: permissionMode,
   });
   mockedApi.updateModelSetting.mockResolvedValue(settings.storedModel);
+  mockedApi.updateReasoningEffortSetting.mockResolvedValue(reasoningEffort);
   mockedApi.resumeThread.mockResolvedValue({});
   mockedApi.updateRepo.mockResolvedValue(repo);
   mockedApi.uploadImages.mockResolvedValue([]);
@@ -177,6 +190,9 @@ describe("useConversationState websocket subscriptions", () => {
       storedModel: "gpt-5.2-codex",
       defaultModel: "gpt-5.2-codex",
     });
+    mockedApi.getReasoningEffortSettings.mockResolvedValue({
+      storedReasoningEffort: "medium",
+    });
     mockedApi.getPermissionModeSettings.mockResolvedValue({
       defaultMode: "FullAccess",
     });
@@ -227,7 +243,7 @@ describe("useConversationState model selection", () => {
 
   it("uses stored model when available", async () => {
     const hook = await setupHook(undefined, {
-      models: ["gpt-5.2-codex"],
+      modelsPayload: ["gpt-5.2-codex"],
       settings: { storedModel: "gpt-5.2-codex", defaultModel: null },
     });
 
@@ -238,7 +254,7 @@ describe("useConversationState model selection", () => {
 
   it("falls back to default model when stored model is unavailable", async () => {
     const hook = await setupHook(undefined, {
-      models: ["gpt-5.1-codex"],
+      modelsPayload: ["gpt-5.1-codex"],
       settings: {
         storedModel: "gpt-5.2-codex",
         defaultModel: "gpt-5.1-codex",
@@ -252,7 +268,7 @@ describe("useConversationState model selection", () => {
 
   it("falls back to the first model when stored and default are unavailable", async () => {
     const hook = await setupHook(undefined, {
-      models: ["gpt-4o-mini", "gpt-4o"],
+      modelsPayload: ["gpt-4o-mini", "gpt-4o"],
       settings: { storedModel: "gpt-5.2-codex", defaultModel: "gpt-5.1" },
     });
 
@@ -271,6 +287,33 @@ describe("useConversationState model selection", () => {
 
     await waitFor(() => {
       expect(mockedApi.updateModelSetting).toHaveBeenCalledWith("gpt-4o-mini");
+    });
+  });
+
+  it("falls back to model default reasoning effort when stored effort is unsupported", async () => {
+    const hook = await setupHook(undefined, {
+      modelsPayload: {
+        models: [
+          {
+            id: "gpt-5.2-codex",
+            supported_reasoning_efforts: [
+              { reasoning_effort: "high", description: "High" },
+            ],
+            default_reasoning_effort: "high",
+          },
+        ],
+      },
+      reasoningEffort: "low",
+    });
+
+    await waitFor(() => {
+      expect(hook.result.current.selectedReasoningEffort).toBe("high");
+    });
+
+    await waitFor(() => {
+      expect(mockedApi.updateReasoningEffortSetting).toHaveBeenCalledWith(
+        "high",
+      );
     });
   });
 });
@@ -414,7 +457,7 @@ describe("useConversationState handleSend", () => {
   });
 
   it("blocks send and shows toast when no models are available", async () => {
-    const hook = await setupHook(undefined, { models: [] });
+    const hook = await setupHook(undefined, { modelsPayload: [] });
     await act(async () => {
       hook.result.current.setInputText(" hello ");
     });
@@ -451,6 +494,7 @@ describe("useConversationState handleSend", () => {
       "thread-1",
       [{ type: "text", text: "hello" }],
       expect.objectContaining({
+        effort: "medium",
         approvalPolicy: "never",
         sandboxPolicy: { type: "dangerFullAccess" },
       }),
@@ -565,6 +609,7 @@ describe("useConversationState handleSend", () => {
       "thread-1",
       [{ type: "text", text: "hello" }],
       expect.objectContaining({
+        effort: "medium",
         approvalPolicy: "on-request",
         sandboxPolicy: {
           type: "workspaceWrite",
@@ -763,6 +808,9 @@ describe("useConversationState handleCreateThread", () => {
     mockedApi.getModelSettings.mockResolvedValue({
       storedModel: null,
       defaultModel: null,
+    });
+    mockedApi.getReasoningEffortSettings.mockResolvedValue({
+      storedReasoningEffort: "medium",
     });
     mockedApi.getPermissionModeSettings.mockResolvedValue({
       defaultMode: "FullAccess",

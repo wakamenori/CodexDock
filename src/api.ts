@@ -1,5 +1,6 @@
 import type {
   PermissionMode,
+  ReasoningEffort,
   Repo,
   ReviewTarget,
   ThreadSummary,
@@ -98,6 +99,11 @@ export const api = {
   }> {
     return requestJson("/api/settings/permission-mode");
   },
+  async getReasoningEffortSettings(): Promise<{
+    storedReasoningEffort: ReasoningEffort | null;
+  }> {
+    return requestJson("/api/settings/reasoning-effort");
+  },
   async updateModelSetting(model: string | null): Promise<string | null> {
     const data = await requestJson<{ storedModel: string | null }>(
       "/api/settings/model",
@@ -108,6 +114,21 @@ export const api = {
       },
     );
     return data.storedModel;
+  },
+  async updateReasoningEffortSetting(
+    reasoningEffort: ReasoningEffort,
+  ): Promise<ReasoningEffort> {
+    const data = await requestJson<{
+      storedReasoningEffort: ReasoningEffort | null;
+    }>("/api/settings/reasoning-effort", {
+      method: "PUT",
+      headers: jsonHeaders,
+      body: JSON.stringify({ reasoningEffort }),
+    });
+    if (!data.storedReasoningEffort) {
+      throw new ApiError("Invalid reasoning effort", 500, data);
+    }
+    return data.storedReasoningEffort;
   },
   async createThread(repoId: string, model?: string): Promise<string> {
     const options: RequestInit = { method: "POST" };

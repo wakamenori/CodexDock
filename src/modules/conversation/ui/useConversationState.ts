@@ -11,7 +11,10 @@ import type {
   FileChangeEntry,
   ImageAttachment,
   JsonValue,
+  ModelInfo,
   PermissionMode,
+  ReasoningEffort,
+  ReasoningEffortOption,
   Repo,
   ReviewTarget,
   ReviewTargetType,
@@ -77,6 +80,8 @@ export type UseAppStateResult = {
   reviewCustomInstructions: string;
   selectedModel: string | null;
   availableModels: string[] | undefined;
+  selectedReasoningEffort: ReasoningEffort | null;
+  availableReasoningEfforts: ReasoningEffortOption[] | undefined;
   permissionMode: PermissionMode;
   selectRepo: (repoId: string | null) => void;
   setInputText: (value: string) => void;
@@ -90,6 +95,7 @@ export type UseAppStateResult = {
   handleCreateThread: (targetRepoId?: string | null) => Promise<void>;
   handleSelectThread: (repoId: string, threadId: string) => Promise<void>;
   handleModelChange: (model: string | null) => void;
+  handleReasoningEffortChange: (effort: ReasoningEffort) => void;
   handlePermissionModeChange: (mode: PermissionMode) => void;
   handleApprove: (
     repoId: string,
@@ -173,6 +179,139 @@ const extractModelIds = (payload: unknown): string[] => {
   return [];
 };
 
+const parseReasoningEffort = (value: unknown): ReasoningEffort | null => {
+  if (typeof value !== "string") return null;
+  switch (value) {
+    case "minimal":
+    case "low":
+    case "medium":
+    case "high":
+    case "xhigh":
+    case "none":
+      return value;
+    default:
+      return null;
+  }
+};
+
+const extractReasoningEffortOptions = (
+  value: unknown,
+): ReasoningEffortOption[] => {
+  if (!Array.isArray(value)) return [];
+  const options: ReasoningEffortOption[] = [];
+  for (const item of value) {
+    if (typeof item === "string") {
+      const effort = parseReasoningEffort(item);
+      if (effort) options.push({ effort });
+      continue;
+    }
+    const record = asRecord(item);
+    if (!record) continue;
+    const effort = parseReasoningEffort(
+      record.reasoning_effort ?? record.reasoningEffort ?? record.effort,
+    );
+    if (!effort) continue;
+    const description = getStringValue(record, "description");
+    options.push({ effort, description });
+  }
+  return options;
+};
+
+const extractModelInfoFromArray = (items: unknown[]): ModelInfo[] => {
+  const models: ModelInfo[] = [];
+  for (const item of items) {
+    const record = asRecord(item);
+    if (!record) continue;
+    const id =
+      getStringValue(record, "id") ??
+      getStringValue(record, "model") ??
+      getStringValue(record, "name");
+    if (!id) continue;
+    const displayName =
+      getStringValue(record, "display_name") ??
+      getStringValue(record, "displayName") ??
+      id;
+    const description =
+      getStringValue(record, "description") ??
+      getStringValue(record, "details");
+    const supportedReasoningEfforts = extractReasoningEffortOptions(
+      record.supported_reasoning_efforts ??
+        record.supportedReasoningEfforts ??
+        record.reasoning_efforts,
+    );
+    const defaultEffort = parseReasoningEffort(
+      record.default_reasoning_effort ?? record.defaultReasoningEffort,
+    );
+    if (!defaultEffort) continue;
+    models.push({
+      id,
+      displayName,
+      description: description ?? undefined,
+      supportedReasoningEfforts,
+      defaultReasoningEffort: defaultEffort,
+    });
+  }
+  return models;
+};
+
+const extractModelInfo = (payload: unknown): ModelInfo[] => {
+  if (Array.isArray(payload)) {
+    return extractModelInfoFromArray(payload);
+  }
+  const record = asRecord(payload);
+  if (!record) return [];
+  const nested = record.result;
+  if (nested) {
+    const nestedModels = extractModelInfo(nested);
+    if (nestedModels.length > 0) return nestedModels;
+  }
+  const candidates = [
+    getArrayValue(record, "models"),
+    getArrayValue(record, "data"),
+    getArrayValue(record, "items"),
+  ];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const models = extractModelInfoFromArray(candidate);
+    if (models.length > 0) return models;
+  }
+  return [];
+};
+
+const fallbackReasoningEfforts: ReasoningEffortOption[] = [
+  { effort: "minimal" },
+  { effort: "low" },
+  { effort: "medium" },
+  { effort: "high" },
+  { effort: "xhigh" },
+  { effort: "none" },
+];
+
+const resolveReasoningEffort = ({
+  storedReasoningEffort,
+  defaultReasoningEffort,
+  availableEfforts,
+}: {
+  storedReasoningEffort: ReasoningEffort | null;
+  defaultReasoningEffort: ReasoningEffort | null;
+  availableEfforts: ReasoningEffortOption[] | undefined;
+}): ReasoningEffort | null => {
+  const available =
+    availableEfforts && availableEfforts.length > 0
+      ? availableEfforts
+      : undefined;
+  if (!available) return storedReasoningEffort ?? defaultReasoningEffort;
+  const allowed = new Set(available.map((option) => option.effort));
+  if (storedReasoningEffort && allowed.has(storedReasoningEffort)) {
+    return storedReasoningEffort;
+  }
+  if (defaultReasoningEffort && allowed.has(defaultReasoningEffort)) {
+    return defaultReasoningEffort;
+  }
+  if (allowed.has("medium")) return "medium";
+  return available[0]?.effort ?? null;
+};
+
 const createAttachmentId = () => {
   const cryptoObj =
     typeof globalThis.crypto !== "undefined" ? globalThis.crypto : undefined;
@@ -248,9 +387,16 @@ export const useConversationState = (): UseAppStateResult => {
   const [availableModelsByRepo, setAvailableModelsByRepo] = useState<
     Record<string, string[]>
   >({});
+  const [modelInfoByRepo, setModelInfoByRepo] = useState<
+    Record<string, ModelInfo[]>
+  >({});
   const [storedModel, setStoredModel] = useState<string | null>(null);
   const [defaultModel, setDefaultModel] = useState<string | null>(null);
   const [modelSettingsLoaded, setModelSettingsLoaded] = useState(false);
+  const [storedReasoningEffort, setStoredReasoningEffort] =
+    useState<ReasoningEffort | null>(null);
+  const [reasoningEffortSettingsLoaded, setReasoningEffortSettingsLoaded] =
+    useState(false);
   const [permissionMode, setPermissionMode] =
     useState<PermissionMode>("FullAccess");
   const [inputText, setInputText] = useState("");
@@ -319,6 +465,33 @@ export const useConversationState = (): UseAppStateResult => {
         settingsLoaded: modelSettingsLoaded,
       }),
     [availableModels, defaultModel, modelSettingsLoaded, storedModel],
+  );
+  const availableModelInfo = selectedRepoId
+    ? modelInfoByRepo[selectedRepoId]
+    : undefined;
+  const selectedModelInfo = useMemo(() => {
+    if (!selectedModel) return null;
+    return (
+      availableModelInfo?.find((item) => item.id === selectedModel) ?? null
+    );
+  }, [availableModelInfo, selectedModel]);
+  const availableReasoningEfforts = selectedModelInfo?.supportedReasoningEfforts
+    .length
+    ? selectedModelInfo.supportedReasoningEfforts
+    : fallbackReasoningEfforts;
+  const selectedReasoningEffort = useMemo(
+    () =>
+      resolveReasoningEffort({
+        storedReasoningEffort,
+        defaultReasoningEffort:
+          selectedModelInfo?.defaultReasoningEffort ?? null,
+        availableEfforts: availableReasoningEfforts,
+      }),
+    [
+      availableReasoningEfforts,
+      selectedModelInfo?.defaultReasoningEffort,
+      storedReasoningEffort,
+    ],
   );
 
   useEffect(() => {
@@ -844,6 +1017,23 @@ export const useConversationState = (): UseAppStateResult => {
   useEffect(() => {
     void (async () => {
       try {
+        const settings = await api.getReasoningEffortSettings();
+        setStoredReasoningEffort(settings.storedReasoningEffort ?? null);
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to load reasoning effort",
+        );
+      } finally {
+        setReasoningEffortSettingsLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
         const settings = await api.getPermissionModeSettings();
         if (permissionModeTouchedRef.current) return;
         setPermissionMode(normalizePermissionMode(settings.defaultMode));
@@ -884,11 +1074,18 @@ export const useConversationState = (): UseAppStateResult => {
       try {
         const result = await api.listModels(selectedRepoId);
         const models = extractModelIds(result);
+        const modelInfo = extractModelInfo(result);
         setAvailableModelsByRepo((prev) => {
           const next = { ...prev };
           next[selectedRepoId] = models;
           return next;
         });
+        if (modelInfo.length > 0) {
+          setModelInfoByRepo((prev) => ({
+            ...prev,
+            [selectedRepoId]: modelInfo,
+          }));
+        }
       } catch (error) {
         console.warn("Failed to load models", selectedRepoId, error);
         toast.error(
@@ -897,6 +1094,37 @@ export const useConversationState = (): UseAppStateResult => {
       }
     })();
   }, [selectedRepoId]);
+
+  useEffect(() => {
+    if (!reasoningEffortSettingsLoaded) return;
+    if (!storedReasoningEffort) return;
+    const allowed = new Set(
+      availableReasoningEfforts.map((option) => option.effort),
+    );
+    if (allowed.has(storedReasoningEffort)) return;
+    const fallback =
+      selectedModelInfo?.defaultReasoningEffort ??
+      availableReasoningEfforts[0]?.effort ??
+      "medium";
+    if (fallback === storedReasoningEffort) return;
+    setStoredReasoningEffort(fallback);
+    void (async () => {
+      try {
+        await api.updateReasoningEffortSetting(fallback);
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to update reasoning effort",
+        );
+      }
+    })();
+  }, [
+    availableReasoningEfforts,
+    reasoningEffortSettingsLoaded,
+    selectedModelInfo?.defaultReasoningEffort,
+    storedReasoningEffort,
+  ]);
 
   const sendWs = useCallback((message: WsOutboundMessage) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -1089,6 +1317,27 @@ export const useConversationState = (): UseAppStateResult => {
     [storedModel],
   );
 
+  const handleReasoningEffortChange = useCallback(
+    (effort: ReasoningEffort) => {
+      const previous = storedReasoningEffort;
+      setStoredReasoningEffort(effort);
+      void (async () => {
+        try {
+          const stored = await api.updateReasoningEffortSetting(effort);
+          setStoredReasoningEffort(stored);
+        } catch (error) {
+          setStoredReasoningEffort(previous ?? null);
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to update reasoning effort",
+          );
+        }
+      })();
+    },
+    [storedReasoningEffort],
+  );
+
   const handleApprove = useCallback(
     (
       repoId: string,
@@ -1238,7 +1487,11 @@ export const useConversationState = (): UseAppStateResult => {
         selectedRepoId,
         selectedThreadId,
         input,
-        { model: modelToSend, ...permissionOptions },
+        {
+          model: modelToSend,
+          effort: selectedReasoningEffort ?? "medium",
+          ...permissionOptions,
+        },
       );
       setActiveTurnByThread((prev) => ({
         ...prev,
@@ -1282,6 +1535,7 @@ export const useConversationState = (): UseAppStateResult => {
     selectedThreadId,
     selectedModel,
     availableModels,
+    selectedReasoningEffort,
     permissionMode,
     selectedRepo?.path,
     threadsByRepo,
@@ -1530,6 +1784,8 @@ export const useConversationState = (): UseAppStateResult => {
     reviewCustomInstructions,
     selectedModel,
     availableModels,
+    selectedReasoningEffort,
+    availableReasoningEfforts,
     permissionMode,
     selectRepo,
     setInputText,
@@ -1543,6 +1799,7 @@ export const useConversationState = (): UseAppStateResult => {
     handleCreateThread,
     handleSelectThread,
     handleModelChange,
+    handleReasoningEffortChange,
     handlePermissionModeChange,
     handleApprove,
     handleSend,

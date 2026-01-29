@@ -26,6 +26,8 @@ export default function App() {
     reviewCustomInstructions,
     selectedModel,
     availableModels,
+    selectedReasoningEffort,
+    availableReasoningEfforts,
     permissionMode,
     selectRepo,
     setInputText,
@@ -37,6 +39,7 @@ export default function App() {
     handleCreateThread,
     handleSelectThread,
     handleModelChange,
+    handleReasoningEffortChange,
     handlePermissionModeChange,
     handleApprove,
     handleSend,
@@ -81,6 +84,8 @@ export default function App() {
           selectedRepoPath={selectedRepo?.path ?? null}
           selectedModel={selectedModel}
           availableModels={availableModels}
+          selectedReasoningEffort={selectedReasoningEffort}
+          availableReasoningEfforts={availableReasoningEfforts}
           permissionMode={permissionMode}
           onInputTextChange={(value) => setInputText(value)}
           onReviewTargetTypeChange={setReviewTargetType}
@@ -93,6 +98,7 @@ export default function App() {
           onReviewStart={handleReviewStart}
           onStop={handleStop}
           onModelChange={handleModelChange}
+          onReasoningEffortChange={handleReasoningEffortChange}
           onPermissionModeChange={handlePermissionModeChange}
           onApprove={handleApprove}
         />

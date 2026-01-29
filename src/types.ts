@@ -7,6 +7,27 @@ export type Repo = {
 
 export type PermissionMode = "FullAccess" | "ReadOnly" | "OnRequest";
 
+export type ReasoningEffort =
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "none";
+
+export type ReasoningEffortOption = {
+  effort: ReasoningEffort;
+  description?: string;
+};
+
+export type ModelInfo = {
+  id: string;
+  displayName: string;
+  description?: string;
+  supportedReasoningEfforts: ReasoningEffortOption[];
+  defaultReasoningEffort: ReasoningEffort;
+};
+
 export type ReviewTargetType =
   | "uncommittedChanges"
   | "baseBranch"
@@ -26,6 +47,7 @@ export type SandboxPolicy =
 
 export type TurnStartOptions = {
   model?: string;
+  effort?: ReasoningEffort;
   approvalPolicy?: string;
   sandboxPolicy?: SandboxPolicy;
 };

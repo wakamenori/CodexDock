@@ -6,6 +6,8 @@ import {
 import type {
   ImageAttachment,
   PermissionMode,
+  ReasoningEffort,
+  ReasoningEffortOption,
   ReviewTargetType,
 } from "../types";
 
@@ -21,6 +23,8 @@ type ComposerProps = {
   activeTurnId: string | null;
   selectedModel: string | null;
   availableModels: string[] | undefined;
+  selectedReasoningEffort: ReasoningEffort | null;
+  availableReasoningEfforts: ReasoningEffortOption[] | undefined;
   permissionMode: PermissionMode;
   onInputTextChange: (value: string) => void;
   onAddImages: (files: File[]) => void;
@@ -33,6 +37,7 @@ type ComposerProps = {
   onReviewStart: () => void | Promise<void>;
   onStop: () => void | Promise<void>;
   onModelChange: (model: string | null) => void;
+  onReasoningEffortChange: (effort: ReasoningEffort) => void;
   onPermissionModeChange: (mode: PermissionMode) => void;
 };
 
@@ -48,6 +53,8 @@ export function Composer({
   activeTurnId,
   selectedModel,
   availableModels,
+  selectedReasoningEffort,
+  availableReasoningEfforts,
   permissionMode,
   onInputTextChange,
   onAddImages,
@@ -60,6 +67,7 @@ export function Composer({
   onReviewStart,
   onStop,
   onModelChange,
+  onReasoningEffortChange,
   onPermissionModeChange,
 }: ComposerProps) {
   const normalizedModel = selectedModel ?? "";
@@ -67,6 +75,16 @@ export function Composer({
   const displayModels = normalizedModel
     ? Array.from(new Set([normalizedModel, ...modelOptions]))
     : modelOptions;
+  const effortOptions = availableReasoningEfforts ?? [];
+  const displayEfforts: ReasoningEffortOption[] = [];
+  const seenEfforts = new Set<ReasoningEffort>();
+  for (const option of effortOptions) {
+    if (seenEfforts.has(option.effort)) continue;
+    seenEfforts.add(option.effort);
+    displayEfforts.push(option);
+  }
+  const selectedEffortValue =
+    selectedReasoningEffort ?? displayEfforts[0]?.effort ?? "";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const canSend =
     Boolean(selectedThreadId) &&
@@ -246,6 +264,21 @@ export function Composer({
               {displayModels.map((model) => (
                 <option key={model} value={model}>
                   {model}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Reasoning effort"
+              className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-100"
+              value={selectedEffortValue}
+              onChange={(event) =>
+                onReasoningEffortChange(event.target.value as ReasoningEffort)
+              }
+              disabled={!selectedThreadId || displayEfforts.length === 0}
+            >
+              {displayEfforts.map((option) => (
+                <option key={option.effort} value={option.effort}>
+                  {option.effort}
                 </option>
               ))}
             </select>
