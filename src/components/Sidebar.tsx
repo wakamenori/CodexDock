@@ -1,3 +1,4 @@
+import { FolderGit2, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { formatRelativeTime } from "../shared/date";
@@ -92,6 +93,15 @@ export function Sidebar({
         <p className="text-xs uppercase tracking-[0.3em] text-ink-300">
           Repositories
         </p>
+        <button
+          aria-label="Add repo"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-ink-600 text-ink-300 transition hover:border-ink-400 hover:text-ink-200"
+          onClick={onAddRepo}
+          type="button"
+          title="Add repo"
+        >
+          <FolderGit2 className="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto pr-1 scrollbar-thin">
@@ -124,15 +134,16 @@ export function Sidebar({
                     {repo.name}
                   </button>
                   <button
-                    className="rounded-full border border-ink-600 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-ink-300 transition hover:border-neon-400 hover:text-ink-100"
+                    aria-label="New thread"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-ink-600 text-ink-300 transition hover:border-neon-400 hover:text-ink-100"
                     onClick={(event) => {
                       event.stopPropagation();
                       onCreateThread(repo.repoId);
                     }}
-                    disabled={running}
                     type="button"
+                    title="New thread"
                   >
-                    New
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </div>
 
@@ -192,14 +203,6 @@ export function Sidebar({
           })}
         </div>
       </div>
-
-      <button
-        className="w-full rounded-md border border-ink-600 px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-ink-300 transition hover:border-ink-400 hover:text-ink-200"
-        onClick={onAddRepo}
-        type="button"
-      >
-        Add Repo
-      </button>
     </aside>
   );
 }
