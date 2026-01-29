@@ -1,3 +1,4 @@
+import { Check, Copy } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   isValidElement,
@@ -275,10 +276,14 @@ function CodeBlock({ children, ...props }: PreProps) {
           onClick={() => {
             void handleCopy();
           }}
-          aria-label="Copy code"
-          title="Copy code"
+          aria-label={copied ? "Copied" : "Copy code"}
+          title={copied ? "Copied" : "Copy code"}
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? (
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
         </button>
       </div>
       {isMermaid && mermaidMode === "render" ? (

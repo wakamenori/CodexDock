@@ -228,6 +228,7 @@ body {
 .markdown .code-copy:hover,
 .markdown .code-toggle button:hover {
   border-color: rgba(122, 162, 247, 0.7);
+  background: rgba(8, 10, 16, 0.9);
   color: #c0caf5;
 }
 

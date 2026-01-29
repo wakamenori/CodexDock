@@ -31,6 +31,7 @@
 ## Coding conventions
 - Formatting/lint: Biome（2スペース、import整理、lintは推奨ルール）
 - Naming: 既存の命名に合わせる（ReactコンポーネントはPascalCase、関数/変数はcamelCase）
+- Icons: アイコンは `lucide-react` を使用する
 - Error handling/logging: 例外は握りつぶさない。ログはpinoを使い、文脈情報を含める。機密は出力しない
 - Types/clean code: `any` 禁止。`unknown` + 型ガードで安全に絞り込む。未使用変数/型の放置禁止。最小変更で読みやすさを維持
 

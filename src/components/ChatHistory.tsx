@@ -1,3 +1,4 @@
+import { Check, Copy } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAutoScroll } from "../hooks/useAutoScroll";
 import {
@@ -103,7 +104,6 @@ export function ChatHistory({
               const message = entry.message;
               if (message.approval) {
                 const approval = message.approval;
-                const isCopied = copiedMessageId === message.id;
                 const outcomeTone =
                   approval.outcome === "approved"
                     ? {
@@ -133,26 +133,9 @@ export function ChatHistory({
                     <div
                       className={`max-w-[85%] rounded-xl border px-4 py-3 ${outcomeTone.border} ${outcomeTone.bg}`}
                     >
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-xs uppercase tracking-[0.2em] text-ink-400">
-                          Approval
-                        </p>
-                        <button
-                          type="button"
-                          className={`rounded-md border px-2 py-1 text-[10px] uppercase tracking-[0.2em] transition ${
-                            isCopied
-                              ? "border-neon-400/70 text-neon-300"
-                              : "border-ink-600 text-ink-300 hover:border-ink-400 hover:text-ink-100"
-                          }`}
-                          onClick={() => {
-                            void handleCopy(message);
-                          }}
-                          aria-label="Copy message"
-                          title="Copy message"
-                        >
-                          {isCopied ? "Copied" : "Copy"}
-                        </button>
-                      </div>
+                      <p className="mb-2 text-xs uppercase tracking-[0.2em] text-ink-400">
+                        Approval
+                      </p>
                       <p
                         className={`text-sm font-semibold ${outcomeTone.label}`}
                       >
@@ -251,48 +234,48 @@ export function ChatHistory({
                       isUser
                         ? "border-neon-500/30 bg-ink-900/80"
                         : "border-ink-700 bg-ink-800/70"
-                    } ${message.pending ? "opacity-70" : ""}`}
+                    } ${message.pending ? "opacity-70" : ""} relative group`}
                   >
                     {isCopyable && (
-                      <div
-                        className={`mb-2 flex items-center ${
-                          message.pending ? "justify-between" : "justify-end"
+                      <button
+                        type="button"
+                        className={`absolute right-2 top-2 rounded-md border p-1 opacity-0 transition focus-visible:opacity-100 focus-visible:bg-ink-950/80 group-hover:opacity-100 hover:bg-ink-950/80 ${
+                          isCopied
+                            ? "border-neon-400/70 text-neon-300"
+                            : "border-ink-600 text-ink-300 hover:border-ink-400 hover:text-ink-100"
+                        }`}
+                        onClick={() => {
+                          void handleCopy(message);
+                        }}
+                        aria-label={isCopied ? "Copied" : "Copy message"}
+                        title={isCopied ? "Copied" : "Copy message"}
+                      >
+                        {isCopied ? (
+                          <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                        )}
+                      </button>
+                    )}
+                    {message.pending && (
+                      <span
+                        className={`absolute left-3 top-2 text-[10px] uppercase tracking-[0.2em] text-ink-400 ${
+                          isUser ? "text-right" : ""
                         }`}
                       >
-                        {message.pending && (
-                          <p
-                            className={`text-xs text-ink-300 ${isUser ? "text-right" : ""}`}
-                          >
-                            pending
-                          </p>
-                        )}
-                        <button
-                          type="button"
-                          className={`rounded-md border px-2 py-1 text-[10px] uppercase tracking-[0.2em] transition ${
-                            isCopied
-                              ? "border-neon-400/70 text-neon-300"
-                              : "border-ink-600 text-ink-300 hover:border-ink-400 hover:text-ink-100"
-                          }`}
-                          onClick={() => {
-                            void handleCopy(message);
-                          }}
-                          aria-label="Copy message"
-                          title="Copy message"
-                        >
-                          {isCopied ? "Copied" : "Copy"}
-                        </button>
-                      </div>
+                        pending
+                      </span>
                     )}
-                    {imageNodes.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {imageNodes}
-                      </div>
-                    )}
-                    {message.text ? (
-                      <div className="mt-2 text-sm leading-relaxed text-ink-200 markdown">
-                        <MarkdownRenderer>{message.text}</MarkdownRenderer>
-                      </div>
-                    ) : null}
+                    <div className="space-y-2">
+                      {imageNodes.length > 0 && (
+                        <div className="flex flex-wrap gap-2">{imageNodes}</div>
+                      )}
+                      {message.text ? (
+                        <div className="text-sm leading-relaxed text-ink-200 markdown">
+                          <MarkdownRenderer>{message.text}</MarkdownRenderer>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               );
