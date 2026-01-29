@@ -308,6 +308,7 @@ const resolveReasoningEffort = ({
   if (defaultReasoningEffort && allowed.has(defaultReasoningEffort)) {
     return defaultReasoningEffort;
   }
+  if (allowed.has("high")) return "high";
   if (allowed.has("medium")) return "medium";
   return available[0]?.effort ?? null;
 };
@@ -1103,9 +1104,14 @@ export const useConversationState = (): UseAppStateResult => {
     );
     if (allowed.has(storedReasoningEffort)) return;
     const fallback =
-      selectedModelInfo?.defaultReasoningEffort ??
+      resolveReasoningEffort({
+        storedReasoningEffort: null,
+        defaultReasoningEffort:
+          selectedModelInfo?.defaultReasoningEffort ?? null,
+        availableEfforts: availableReasoningEfforts,
+      }) ??
       availableReasoningEfforts[0]?.effort ??
-      "medium";
+      "high";
     if (fallback === storedReasoningEffort) return;
     setStoredReasoningEffort(fallback);
     void (async () => {
@@ -1489,7 +1495,7 @@ export const useConversationState = (): UseAppStateResult => {
         input,
         {
           model: modelToSend,
-          effort: selectedReasoningEffort ?? "medium",
+          effort: selectedReasoningEffort ?? "high",
           ...permissionOptions,
         },
       );

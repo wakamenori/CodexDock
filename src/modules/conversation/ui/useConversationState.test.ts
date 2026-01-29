@@ -122,7 +122,7 @@ const setupHook = async (
     defaultModel: "gpt-5.2-codex",
   };
   const permissionMode = options?.permissionMode ?? "FullAccess";
-  const reasoningEffort = options?.reasoningEffort ?? "medium";
+  const reasoningEffort = options?.reasoningEffort ?? "high";
 
   mockedApi.listRepos.mockResolvedValue([repo]);
   mockedApi.startSession.mockResolvedValue(undefined);
@@ -494,7 +494,7 @@ describe("useConversationState handleSend", () => {
       "thread-1",
       [{ type: "text", text: "hello" }],
       expect.objectContaining({
-        effort: "medium",
+        effort: "high",
         approvalPolicy: "never",
         sandboxPolicy: { type: "dangerFullAccess" },
       }),
@@ -609,7 +609,7 @@ describe("useConversationState handleSend", () => {
       "thread-1",
       [{ type: "text", text: "hello" }],
       expect.objectContaining({
-        effort: "medium",
+        effort: "high",
         approvalPolicy: "on-request",
         sandboxPolicy: {
           type: "workspaceWrite",
