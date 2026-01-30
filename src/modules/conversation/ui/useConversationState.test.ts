@@ -501,7 +501,7 @@ describe("useConversationState handleSend", () => {
     );
   });
 
-  it("auto-approves command execution items in FullAccess", async () => {
+  it("does not append approval messages for completed tool items", async () => {
     const hook = await setupHook(undefined, { permissionMode: "FullAccess" });
     const ws = FakeWebSocket.instances[0];
     if (!ws) {
@@ -537,51 +537,7 @@ describe("useConversationState handleSend", () => {
       const approvals = hook.result.current.messages.filter(
         (message) => message.approval?.kind === "command",
       );
-      expect(approvals).toHaveLength(1);
-      expect(approvals[0].approval?.outcome).toBe("approved");
-    });
-  });
-
-  it("deduplicates auto-approved items", async () => {
-    const hook = await setupHook(undefined, { permissionMode: "FullAccess" });
-    const ws = FakeWebSocket.instances[0];
-    if (!ws) {
-      throw new Error("WebSocket instance not found");
-    }
-    await waitFor(() => {
-      expect(hook.result.current.permissionMode).toBe("FullAccess");
-    });
-
-    const message = {
-      type: "app_server_notification",
-      payload: {
-        repoId: "repo-1",
-        message: {
-          method: "item/completed",
-          params: {
-            threadId: "thread-1",
-            item: {
-              id: "cmd-2",
-              type: "commandExecution",
-              command: ["pwd"],
-              cwd: "/repo",
-              status: "completed",
-            },
-          },
-        },
-      },
-    };
-
-    act(() => {
-      ws.emitMessage(message);
-      ws.emitMessage(message);
-    });
-
-    await waitFor(() => {
-      const approvals = hook.result.current.messages.filter(
-        (item) => item.approval?.kind === "command",
-      );
-      expect(approvals).toHaveLength(1);
+      expect(approvals).toHaveLength(0);
     });
   });
 
