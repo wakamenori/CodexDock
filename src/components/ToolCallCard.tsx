@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import { useMemo } from "react";
 import { toRelativePath } from "../shared/paths";
 import type { JsonValue, ToolTimelineItem } from "../types";
@@ -42,6 +43,16 @@ const labelForTool = (item: ToolTimelineItem) => {
   return item.type;
 };
 
+const getSearchQuery = (item: ToolTimelineItem): string | null => {
+  if (item.query) return item.query;
+  const input = item.input;
+  if (input && typeof input === "object" && !Array.isArray(input)) {
+    const record = input as Record<string, unknown>;
+    if (typeof record.query === "string") return record.query;
+  }
+  return null;
+};
+
 export function ToolCallCard({ item, selectedRepoPath }: ToolCallCardProps) {
   const statusMeta = formatStatus(item.status);
   const outputText = useMemo(() => {
@@ -49,6 +60,8 @@ export function ToolCallCard({ item, selectedRepoPath }: ToolCallCardProps) {
     return item.aggregatedOutput ?? item.outputStream ?? "";
   }, [item]);
 
+  const showToolLabel = item.type !== "webSearch";
+  const searchQuery = item.type === "webSearch" ? getSearchQuery(item) : null;
   const jsonInput = formatJson(item.input);
   const jsonOutput = formatJson(item.output);
   const jsonError = formatJson(item.error);
@@ -66,9 +79,11 @@ export function ToolCallCard({ item, selectedRepoPath }: ToolCallCardProps) {
             {statusMeta.label}
           </p>
         </div>
-        <p className="text-sm font-semibold text-ink-100">
-          {labelForTool(item)}
-        </p>
+        {showToolLabel && (
+          <p className="text-sm font-semibold text-ink-100">
+            {labelForTool(item)}
+          </p>
+        )}
 
         {item.type === "commandExecution" && (
           <div className="mt-3 grid gap-2">
@@ -134,7 +149,20 @@ export function ToolCallCard({ item, selectedRepoPath }: ToolCallCardProps) {
                 {item.progressMessages.join("\n")}
               </pre>
             )}
-            {jsonInput && (
+            {item.type === "webSearch" && (
+              <div className="rounded-lg border border-ink-800 bg-ink-950/70 px-3 py-2 text-xs text-ink-200">
+                <div className="flex items-start gap-2">
+                  <Search
+                    className="mt-0.5 h-4 w-4 text-ink-400"
+                    aria-hidden="true"
+                  />
+                  <span className="whitespace-pre-wrap break-words">
+                    {searchQuery ?? "(query unavailable)"}
+                  </span>
+                </div>
+              </div>
+            )}
+            {jsonInput && item.type !== "webSearch" && (
               <div className="grid gap-1">
                 <p className="text-xs uppercase tracking-[0.15em] text-ink-400">
                   input

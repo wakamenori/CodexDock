@@ -181,6 +181,21 @@ describe("createWsEventHandlers", () => {
     expect(store.snapshots().toolItems.t1.m1.type).toBe("mcpToolCall");
   });
 
+  it("marks tool items completed when completion lacks status", () => {
+    const store = createStore();
+    store.handlers.handleAppServerNotification("r1", {
+      method: "item/completed",
+      params: {
+        item: {
+          id: "w1",
+          type: "webSearch",
+          query: "weather: Tokyo, Japan",
+        },
+      },
+    });
+    expect(store.snapshots().toolItems.t1.w1.status).toBe("completed");
+  });
+
   it("adds approvals on request", () => {
     const store = createStore();
     store.handlers.handleAppServerRequest("r1", {

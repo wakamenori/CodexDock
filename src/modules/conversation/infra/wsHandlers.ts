@@ -266,7 +266,13 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
 
       const toolItem = parseToolItem(params, item, Date.now());
       if (toolItem) {
-        store.updateToolItems(threadId, (map) => upsertToolItem(map, toolItem));
+        const normalizedToolItem =
+          method === "item/completed" && !toolItem.status
+            ? { ...toolItem, status: "completed" }
+            : toolItem;
+        store.updateToolItems(threadId, (map) =>
+          upsertToolItem(map, normalizedToolItem),
+        );
       }
       if (itemType === "enteredReviewMode") {
         setReviewing(true);
