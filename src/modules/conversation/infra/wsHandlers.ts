@@ -6,6 +6,7 @@ import type {
   FileChangeEntry,
   JsonValue,
   ThreadStatusFlags,
+  ThreadTokenUsage,
   ToolTimelineItem,
   WsInboundMessage,
 } from "../../../types";
@@ -22,6 +23,7 @@ import {
   parseReasoningItemParts,
   parseReasoningSummaryIndex,
   parseThreadId,
+  parseThreadTokenUsage,
   parseToolItem,
   parseTurnId,
   parseUserMessageContent,
@@ -66,6 +68,7 @@ type ThreadStateStore = {
     threadId: string,
     updater: (list: ApprovalRequest[]) => ApprovalRequest[],
   ) => void;
+  updateTokenUsage: (threadId: string, usage: ThreadTokenUsage) => void;
   setActiveTurn: (threadId: string, turnId: string | null) => void;
   updateThreadStatus: (
     threadId: string,
@@ -291,6 +294,12 @@ export const createWsEventHandlers = (store: ThreadStateStore) => {
       store.updateDiffs(threadId, (diffs) =>
         applyDiffUpdate(diffs, turnId, diffText),
       );
+    }
+
+    if (method === "thread/tokenUsage/updated") {
+      const tokenUsage = parseThreadTokenUsage(params);
+      if (!tokenUsage) return;
+      store.updateTokenUsage(threadId, tokenUsage);
     }
 
     if (method === "turn/started") {

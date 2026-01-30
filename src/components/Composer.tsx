@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useRef } from "react";
 import {
   normalizePermissionMode,
@@ -9,6 +10,7 @@ import type {
   ReasoningEffort,
   ReasoningEffortOption,
   ReviewTargetType,
+  ThreadTokenUsage,
 } from "../types";
 
 type ComposerProps = {
@@ -26,6 +28,7 @@ type ComposerProps = {
   selectedReasoningEffort: ReasoningEffort | null;
   availableReasoningEfforts: ReasoningEffortOption[] | undefined;
   permissionMode: PermissionMode;
+  contextUsage: ThreadTokenUsage | null;
   onInputTextChange: (value: string) => void;
   onAddImages: (files: File[]) => void;
   onRemoveImage: (id: string) => void;
@@ -56,6 +59,7 @@ export function Composer({
   selectedReasoningEffort,
   availableReasoningEfforts,
   permissionMode,
+  contextUsage,
   onInputTextChange,
   onAddImages,
   onRemoveImage,
@@ -70,6 +74,8 @@ export function Composer({
   onReasoningEffortChange,
   onPermissionModeChange,
 }: ComposerProps) {
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(Math.max(value, min), max);
   const normalizedModel = selectedModel ?? "";
   const modelOptions = availableModels ?? [];
   const displayModels = normalizedModel
@@ -97,6 +103,18 @@ export function Composer({
     (reviewTargetType === "custom" &&
       reviewCustomInstructions.trim().length > 0);
   const reviewDisabled = !selectedThreadId || running || !reviewReady;
+  const contextWindow = contextUsage?.modelContextWindow ?? null;
+  const lastTotalTokens = contextUsage?.last.totalTokens ?? 0;
+  const totalTokens = contextUsage?.total.totalTokens ?? 0;
+  const usedTokens = lastTotalTokens > 0 ? lastTotalTokens : totalTokens;
+  const contextFreePercent =
+    contextWindow && usedTokens > 0
+      ? 100 - clamp((usedTokens / contextWindow) * 100, 0, 100)
+      : null;
+  const contextFreeLabel =
+    contextFreePercent === null
+      ? "Context free --"
+      : `Context free ${Math.round(contextFreePercent)}%`;
 
   return (
     <div className="border-t border-ink-700 px-6 py-4">
@@ -226,7 +244,27 @@ export function Composer({
           disabled={!selectedThreadId}
         />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-300">
-          <span>{running ? "Streaming..." : null}</span>
+          <div className="flex items-center gap-3">
+            <div className="context-meter" title={contextFreeLabel}>
+              <span
+                className={`context-ring ${contextFreePercent === null ? "is-empty" : ""}`}
+                style={
+                  {
+                    "--context-free": contextFreePercent ?? 0,
+                  } as CSSProperties
+                }
+                aria-hidden="true"
+              />
+              <span className="text-[11px] font-semibold text-ink-200">
+                Context free{" "}
+                <span className="text-ink-400">
+                  {contextFreePercent === null
+                    ? "--"
+                    : `${Math.round(contextFreePercent)}%`}
+                </span>
+              </span>
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             <input
               ref={fileInputRef}

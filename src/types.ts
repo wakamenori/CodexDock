@@ -92,6 +92,20 @@ export type ThreadSummary = {
   lastMessageAt?: string;
 };
 
+export type TokenUsageBreakdown = {
+  totalTokens: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  reasoningOutputTokens: number;
+};
+
+export type ThreadTokenUsage = {
+  total: TokenUsageBreakdown;
+  last: TokenUsageBreakdown;
+  modelContextWindow: number | null;
+};
+
 export type ThreadStatusFlags = {
   processing: boolean;
   reviewing: boolean;

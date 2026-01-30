@@ -6,6 +6,7 @@ import type {
   DiffEntry,
   FileChangeEntry,
   ThreadStatusFlags,
+  ThreadTokenUsage,
   ToolTimelineItem,
 } from "../../../types";
 import { createWsEventHandlers } from "./wsHandlers";
@@ -17,6 +18,7 @@ const createStore = (selectedThreadId: string | null = "t1") => {
   const toolItems: Record<string, Record<string, ToolTimelineItem>> = {};
   const approvals: Record<string, ApprovalRequest[]> = {};
   const activeTurn: Record<string, string | null> = {};
+  const tokenUsageByThread: Record<string, ThreadTokenUsage> = {};
   const threadStatus: Record<string, ThreadStatusFlags> = {};
 
   const handlers = createWsEventHandlers({
@@ -35,6 +37,9 @@ const createStore = (selectedThreadId: string | null = "t1") => {
     },
     updateApprovals: (threadId, updater) => {
       approvals[threadId] = updater(approvals[threadId] ?? []);
+    },
+    updateTokenUsage: (threadId, usage) => {
+      tokenUsageByThread[threadId] = usage;
     },
     setActiveTurn: (threadId, turnId) => {
       activeTurn[threadId] = turnId;
@@ -58,6 +63,7 @@ const createStore = (selectedThreadId: string | null = "t1") => {
       toolItems,
       approvals,
       activeTurn,
+      tokenUsageByThread,
       threadStatus,
     }),
   };
@@ -126,6 +132,25 @@ describe("createWsEventHandlers", () => {
       },
     });
     expect(store.snapshots().fileChanges.t1.f1.changes[0].path).toBe("a");
+  });
+
+  it("stores token usage updates", () => {
+    const store = createStore();
+    store.handlers.handleAppServerNotification("r1", {
+      method: "thread/tokenUsage/updated",
+      params: {
+        threadId: "t1",
+        tokenUsage: {
+          total: { totalTokens: 200 },
+          last: { totalTokens: 30 },
+          modelContextWindow: 2048,
+        },
+      },
+    });
+    expect(store.snapshots().tokenUsageByThread.t1.modelContextWindow).toBe(
+      2048,
+    );
+    expect(store.snapshots().tokenUsageByThread.t1.last.totalTokens).toBe(30);
   });
 
   it("tracks command execution output delta", () => {

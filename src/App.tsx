@@ -8,6 +8,7 @@ export default function App() {
   const {
     repoGroups,
     threadUiStatusByThread,
+    tokenUsageByThread,
     selectedRepoId,
     selectedRepo,
     selectedThreadId,
@@ -48,6 +49,9 @@ export default function App() {
     handleReviewStart,
     handleStop,
   } = useConversationState();
+  const contextUsage = selectedThreadId
+    ? (tokenUsageByThread[selectedThreadId] ?? null)
+    : null;
 
   return (
     <div className="h-screen flex flex-col gap-4 p-4 overflow-hidden">
@@ -87,6 +91,7 @@ export default function App() {
           selectedReasoningEffort={selectedReasoningEffort}
           availableReasoningEfforts={availableReasoningEfforts}
           permissionMode={permissionMode}
+          contextUsage={contextUsage}
           onInputTextChange={(value) => setInputText(value)}
           onReviewTargetTypeChange={setReviewTargetType}
           onReviewBaseBranchChange={setReviewBaseBranch}

@@ -335,3 +335,39 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.context-meter {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.context-ring {
+  --context-free: 0;
+  --context-free-color: rgba(122, 162, 247, 0.9);
+  --context-used-color: rgba(65, 72, 104, 0.65);
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  position: relative;
+  background: conic-gradient(
+    var(--context-free-color) calc(var(--context-free) * 1%),
+    var(--context-used-color) 0
+  );
+  box-shadow: 0 0 12px rgba(122, 162, 247, 0.18);
+}
+
+.context-ring::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  background: rgba(15, 17, 26, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(41, 46, 66, 0.8);
+}
+
+.context-ring.is-empty {
+  --context-free-color: rgba(169, 177, 214, 0.35);
+  --context-used-color: rgba(65, 72, 104, 0.4);
+  box-shadow: none;
+}

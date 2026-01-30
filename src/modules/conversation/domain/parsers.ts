@@ -8,6 +8,7 @@ import type {
   ChatMessage,
   FileChangeEntry,
   JsonValue,
+  ThreadTokenUsage,
   ToolItemType,
   ToolTimelineItem,
   UserMessageImage,
@@ -158,6 +159,53 @@ export const parseDeltaText = (params: unknown) => {
     record?.text ??
     record?.message;
   return typeof candidate === "string" ? candidate : "";
+};
+
+const parseNumericValue = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseFloat(value);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+  return undefined;
+};
+
+const parseTokenUsageBreakdown = (
+  record: Record<string, unknown> | undefined,
+) => ({
+  totalTokens:
+    parseNumericValue(record?.totalTokens ?? record?.total_tokens) ?? 0,
+  inputTokens:
+    parseNumericValue(record?.inputTokens ?? record?.input_tokens) ?? 0,
+  cachedInputTokens:
+    parseNumericValue(
+      record?.cachedInputTokens ?? record?.cached_input_tokens,
+    ) ?? 0,
+  outputTokens:
+    parseNumericValue(record?.outputTokens ?? record?.output_tokens) ?? 0,
+  reasoningOutputTokens:
+    parseNumericValue(
+      record?.reasoningOutputTokens ?? record?.reasoning_output_tokens,
+    ) ?? 0,
+});
+
+export const parseThreadTokenUsage = (
+  params: unknown,
+): ThreadTokenUsage | null => {
+  const record = asRecord(params);
+  const usageRecord = asRecord(record?.tokenUsage ?? record?.token_usage);
+  if (!usageRecord) return null;
+  const total = parseTokenUsageBreakdown(asRecord(usageRecord.total));
+  const last = parseTokenUsageBreakdown(asRecord(usageRecord.last));
+  const modelContextWindow =
+    parseNumericValue(
+      usageRecord.modelContextWindow ?? usageRecord.model_context_window,
+    ) ?? null;
+  return {
+    total,
+    last,
+    modelContextWindow,
+  };
 };
 
 const parseNumericIndex = (value: unknown): number | undefined => {

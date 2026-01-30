@@ -7,6 +7,7 @@ import type {
   ReasoningEffort,
   ReasoningEffortOption,
   ReviewTargetType,
+  ThreadTokenUsage,
   ToolTimelineItem,
 } from "../types";
 import { ApprovalPanel } from "./ApprovalPanel";
@@ -35,6 +36,7 @@ type MainPanelProps = {
   selectedReasoningEffort: ReasoningEffort | null;
   availableReasoningEfforts: ReasoningEffortOption[] | undefined;
   permissionMode: PermissionMode;
+  contextUsage: ThreadTokenUsage | null;
   onInputTextChange: (value: string) => void;
   onReviewTargetTypeChange: (value: ReviewTargetType) => void;
   onReviewBaseBranchChange: (value: string) => void;
@@ -77,6 +79,7 @@ export function MainPanel({
   selectedReasoningEffort,
   availableReasoningEfforts,
   permissionMode,
+  contextUsage,
   onInputTextChange,
   onReviewTargetTypeChange,
   onReviewBaseBranchChange,
@@ -135,6 +138,7 @@ export function MainPanel({
         selectedReasoningEffort={selectedReasoningEffort}
         availableReasoningEfforts={availableReasoningEfforts}
         permissionMode={permissionMode}
+        contextUsage={contextUsage}
         onInputTextChange={onInputTextChange}
         onReviewTargetTypeChange={onReviewTargetTypeChange}
         onReviewBaseBranchChange={onReviewBaseBranchChange}

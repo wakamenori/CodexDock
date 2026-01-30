@@ -21,6 +21,7 @@ const setup = (overrides?: Partial<ComponentProps<typeof Composer>>) => {
     selectedReasoningEffort: "medium",
     availableReasoningEfforts: [{ effort: "medium" }],
     permissionMode: "FullAccess",
+    contextUsage: null,
     onInputTextChange: vi.fn(),
     onReviewTargetTypeChange: vi.fn(),
     onReviewBaseBranchChange: vi.fn(),
@@ -125,5 +126,35 @@ describe("Composer", () => {
     });
     fireEvent.change(effortSelect, { target: { value: "high" } });
     expect(props.onReasoningEffortChange).toHaveBeenCalledWith("high");
+  });
+
+  it("shows context free percent when usage exists", () => {
+    setup({
+      contextUsage: {
+        total: {
+          totalTokens: 1200,
+          inputTokens: 0,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          reasoningOutputTokens: 0,
+        },
+        last: {
+          totalTokens: 800,
+          inputTokens: 0,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          reasoningOutputTokens: 0,
+        },
+        modelContextWindow: 2000,
+      },
+    });
+    expect(screen.getByText("Context free")).toBeTruthy();
+    expect(screen.getByText("60%")).toBeTruthy();
+  });
+
+  it("shows context free placeholder when usage is missing", () => {
+    setup({ contextUsage: null });
+    expect(screen.getByText("Context free")).toBeTruthy();
+    expect(screen.getByText("--")).toBeTruthy();
   });
 });

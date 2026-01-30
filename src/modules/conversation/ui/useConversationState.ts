@@ -21,6 +21,7 @@ import type {
   SessionStatus,
   ThreadStatusFlags,
   ThreadSummary,
+  ThreadTokenUsage,
   ThreadUiStatus,
   ToolTimelineItem,
   WsInboundMessage,
@@ -61,6 +62,7 @@ export type UseAppStateResult = {
     sessionStatus: SessionStatus;
   }[];
   threadUiStatusByThread: Record<string, ThreadUiStatus>;
+  tokenUsageByThread: Record<string, ThreadTokenUsage>;
   selectedRepoId: string | null;
   selectedRepo: Repo | null;
   selectedThreadId: string | null;
@@ -384,6 +386,9 @@ export const useConversationState = (): UseAppStateResult => {
   >({});
   const [threadStatusByThread, setThreadStatusByThread] = useState<
     Record<string, ThreadStatusFlags>
+  >({});
+  const [tokenUsageByThread, setTokenUsageByThread] = useState<
+    Record<string, ThreadTokenUsage>
   >({});
   const [availableModelsByRepo, setAvailableModelsByRepo] = useState<
     Record<string, string[]>
@@ -936,6 +941,13 @@ export const useConversationState = (): UseAppStateResult => {
     [],
   );
 
+  const updateThreadTokenUsage = useCallback(
+    (threadId: string, usage: ThreadTokenUsage) => {
+      setTokenUsageByThread((prev) => ({ ...prev, [threadId]: usage }));
+    },
+    [],
+  );
+
   const setThreadMessages = useCallback(
     (threadId: string, list: ChatMessage[]) => {
       setMessagesByThread((prev) => ({ ...prev, [threadId]: list }));
@@ -963,6 +975,7 @@ export const useConversationState = (): UseAppStateResult => {
         setActiveTurn: (threadId: string, turnId: string | null) => {
           setActiveTurnByThread((prev) => ({ ...prev, [threadId]: turnId }));
         },
+        updateTokenUsage: updateThreadTokenUsage,
         updateThreadStatus,
       }),
     [
@@ -971,6 +984,7 @@ export const useConversationState = (): UseAppStateResult => {
       updateThreadFileChanges,
       updateThreadToolItems,
       updateThreadApprovals,
+      updateThreadTokenUsage,
       updateThreadStatus,
     ],
   );
@@ -1771,6 +1785,7 @@ export const useConversationState = (): UseAppStateResult => {
     repos,
     repoGroups,
     threadUiStatusByThread,
+    tokenUsageByThread,
     selectedRepoId,
     selectedRepo,
     selectedThreadId,
