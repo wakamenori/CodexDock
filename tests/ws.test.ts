@@ -79,7 +79,9 @@ describe("WebSocket", () => {
       gateway,
       turnState,
       refresher,
+      registry,
       logger,
+      notify: async () => {},
     });
 
     const app = createApp({

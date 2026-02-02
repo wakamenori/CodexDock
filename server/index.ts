@@ -28,6 +28,7 @@ const main = async () => {
     gateway,
     turnState,
     refresher,
+    registry,
     logger,
   });
 
